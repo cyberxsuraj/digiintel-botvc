@@ -133,8 +133,11 @@ bot.command('aadhar', async (ctx) => {
             data.forEach((row, index) => {
                 resultText += `📑 *RECORD #${index + 1}*\n`;
                 resultText += `👤 *NAME:* ${row.name || 'N/A'}\n`;
-                resultText += `📞 *LINKED MOBILE:* ${row.mobile || 'N/A'}\n`;
-                resultText += `📍 *ADDR:* ${row.address || 'N/A'}\n`;
+                resultText += `👨‍💼 *FATHER:* ${row.fname || 'N/A'}\n`;
+                resultText += `📞 *MOBILE:* ${row.mobile || 'N/A'}\n`;
+                resultText += `🆔 *AADHAR:* ${row.aadhar || row.id || 'N/A'}\n`;
+                resultText += `📍 *CIRCLE:* ${row.circle || 'N/A'}\n`;
+                resultText += `🏠 *ADDRESS:* ${row.address || 'N/A'}\n`;
                 resultText += `${DIVIDER}\n`;
             });
             resultText += `🛡️ @digiintelbot`;
