@@ -99,7 +99,16 @@ bot.command('num', async (ctx) => {
             await db.useCredit(ctx.from.id);
             await db.logSearch('mobile');
             let resultText = `✅ *DATA FOUND*\n${DIVIDER}\n`;
-            data.forEach(row => resultText += `👤 *NAME:* ${row.name || 'N/A'}\n👨‍💼 *FATHER:* ${row.fname || 'N/A'}\n📍 *ADDR:* ${row.address || 'N/A'}\n🆔 *ID:* ${row.id || 'N/A'}\n${DIVIDER}\n`);
+            data.forEach((row, index) => {
+                resultText += `📑 *RECORD #${index + 1}*\n`;
+                resultText += `👤 *NAME:* ${row.name || 'N/A'}\n`;
+                resultText += `👨‍💼 *FATHER:* ${row.fname || 'N/A'}\n`;
+                resultText += `📞 *MOBILE:* ${row.mobile || row.id || 'N/A'}\n`;
+                resultText += `🆔 *AADHAR:* ${row.aadhar || 'N/A'}\n`;
+                resultText += `📍 *CIRCLE:* ${row.circle || 'N/A'}\n`;
+                resultText += `🏠 *ADDRESS:* ${row.address || 'N/A'}\n`;
+                resultText += `${DIVIDER}\n`;
+            });
             resultText += `🛡️ @digiintelbot`;
             await ctx.telegram.editMessageText(ctx.chat.id, msg.message_id, null, resultText, { parse_mode: 'Markdown' });
         }
@@ -120,8 +129,14 @@ bot.command('aadhar', async (ctx) => {
         else {
             await db.useCredit(ctx.from.id);
             await db.logSearch('aadhar');
-            let resultText = `✅ *RECORD FOUND*\n${DIVIDER}\n`;
-            data.forEach(row => resultText += `👤 *NAME:* ${row.name}\n📞 *MOBILE:* ${row.mobile}\n📍 *ADDR:* ${row.address}\n${DIVIDER}\n`);
+            let resultText = `✅ *RECORDS FOUND (${data.length})*\n${DIVIDER}\n`;
+            data.forEach((row, index) => {
+                resultText += `📑 *RECORD #${index + 1}*\n`;
+                resultText += `👤 *NAME:* ${row.name || 'N/A'}\n`;
+                resultText += `📞 *LINKED MOBILE:* ${row.mobile || 'N/A'}\n`;
+                resultText += `📍 *ADDR:* ${row.address || 'N/A'}\n`;
+                resultText += `${DIVIDER}\n`;
+            });
             resultText += `🛡️ @digiintelbot`;
             await ctx.telegram.editMessageText(ctx.chat.id, msg.message_id, null, resultText, { parse_mode: 'Markdown' });
         }
