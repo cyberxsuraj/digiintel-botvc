@@ -39,9 +39,9 @@ const getMainMenu = (ctx) => {
     return {
         text: `🚀 *WELCOME TO DIGIINTEL OSINT* 🚀\n\n💀 *Elite Intelligence • Real Data • Zero Limits* 💀\n${DIVIDER}\n👁️ Welcome to *DigiIntel* — your gateway to powerful intelligence tools.\n🕵️‍♂️ Data isn't searched here... it's *hunted* ⚡\n${DIVIDER}\n⚡ *CORE FEATURES*\n🔎 Deep Search & Data Lookup\n📱 Mobile & Aadhar Tracking\n📊 Intelligence Gathering\n🧠 Smart Automation\n${DIVIDER}\n👤 *OWNER:* @${ADMIN_USERNAME}\n🔥 _Power is nothing without control. Use it wisely._ 🔥`,
         extra: Markup.inlineKeyboard([
-            [Markup.button.callback('📖 Help', 'help'), Markup.button.callback('💰 Balance', 'credits')],
-            [Markup.button.callback('💎 Buy Credits', 'buy_credits'), Markup.button.callback('🔗 Invite & Earn', 'refer')],
-            [Markup.button.url('📢 Channel', 'https://t.me/digiintel')]
+            [Markup.button.callback('🔎 Search (Mobile/ID)', 'help'), Markup.button.callback('🏦 IFSC Search', 'ifsc_info')],
+            [Markup.button.callback('💰 Balance', 'credits'), Markup.button.callback('🔗 Refer & Earn', 'refer')],
+            [Markup.button.callback('💎 Buy Credits', 'buy_credits'), Markup.button.url('📢 Channel', 'https://t.me/digiintel')]
         ])
     };
 };
@@ -58,7 +58,7 @@ bot.start(async (ctx) => {
 });
 
 const sendHelp = (ctx) => {
-    return ctx.reply(`📚 *AVAILABLE COMMANDS*\n\n${DIVIDER}\n/num <number> — Search Mobile (1💳)\n/aadhar <id> — Search Aadhar (1💳)\n/refer — Earn Credits\n/credits — Check Balance\n${DIVIDER}\n👉 Contact @${ADMIN_USERNAME} for bulk access.`, { parse_mode: 'Markdown' });
+    return ctx.reply(`📚 *AVAILABLE COMMANDS*\n\n${DIVIDER}\n🔎 */num <number>* — Search Mobile (1💳)\n🆔 */aadhar <id>* — Search Aadhar (1💳)\n🏦 */ifsc <code>* — Bank Details (FREE)\n💰 */credits* — Check Balance\n🔗 */refer* — Earn Credits\n${DIVIDER}\n👉 Contact @${ADMIN_USERNAME} for bulk access.`, { parse_mode: 'Markdown' });
 };
 bot.action('help', (ctx) => sendHelp(ctx));
 bot.command('help', (ctx) => sendHelp(ctx));
@@ -72,6 +72,10 @@ bot.command('credits', (ctx) => sendCredits(ctx));
 
 bot.action('buy_credits', (ctx) => {
     ctx.reply(`💎 *ELITE CREDIT PACKS*\n\n${DIVIDER}\n⭐ *Min Purchase:* 100 Credits\n💰 *Status:* Best Value\n${DIVIDER}\n👉 Contact @${ADMIN_USERNAME} to buy instantly.`, { parse_mode: 'Markdown' });
+});
+
+bot.action('ifsc_info', (ctx) => {
+    ctx.reply(`🏦 *BANK/IFSC SEARCH*\n\n${DIVIDER}\nTo search for bank details, use the command:\n\n👉 \`/ifsc SBIN0001234\`\n\n(This service is *FREE* for all users!)\n${DIVIDER}`, { parse_mode: 'Markdown' });
 });
 
 const sendRefer = async (ctx) => {
