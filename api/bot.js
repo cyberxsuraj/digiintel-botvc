@@ -190,34 +190,25 @@ bot.command('vahan', async (ctx) => {
         };
 
         let data = null;
+        let lastError = "";
 
         try {
-            // Navi Elite Search (Fastest & Unmasked)
+            // Navi Elite Search
             const naviRes = await axios.get(`https://api.navi.com/v1/vehicle/details?registrationNumber=${regNo}`, { headers, timeout: 5000 });
-            const d = naviRes.data;
-            if (d && d.engineNumber) {
-                data = {
-                    ownerName: d.ownerName,
-                    chassisNumber: d.chassisNumber,
-                    engineNumber: d.engineNumber,
-                    model: d.vehicleModel,
-                    make: d.vehicleMake,
-                    fuelType: d.fuelType,
-                    registrationDate: d.registrationDate,
-                    policyExpiryDate: d.insuranceExpiryDate
-                };
-            }
+            data = naviRes.data;
         } catch (e) {
-            console.log("Navi failed, trying Acko Fallback...");
+            lastError = `Navi: ${e.response?.status || e.message}`;
             try {
-                // Final Backup: Acko Direct
+                // Acko Fallback
                 const ackoRes = await axios.post('https://www.acko.com/api/v1/tw/vehicle/details', { registrationNumber: regNo }, { headers, timeout: 5000 });
                 data = ackoRes.data.data;
-            } catch (e2) {}
+            } catch (e2) {
+                lastError += ` | Acko: ${e2.response?.status || e2.message}`;
+            }
         }
 
         if (!data || !data.engineNumber) {
-            return await ctx.telegram.editMessageText(ctx.chat.id, msg.message_id, null, "❌ *Vehicle not found or Database Busy.*", { parse_mode: 'Markdown' });
+            return await ctx.telegram.editMessageText(ctx.chat.id, msg.message_id, null, `❌ *Intelligence Fail:*\n\n\`${lastError}\`\n\n_Try again in 60 seconds._`, { parse_mode: 'Markdown' });
         }
 
         await db.useCredit(ctx.from.id, 2);
