@@ -167,6 +167,27 @@ bot.command('aadhar', async (ctx) => {
 });
 
 // --- ADMIN ---
+bot.command('ifsc', async (ctx) => {
+    const code = ctx.message.text.split(' ')[1];
+    if (!code) return ctx.reply("⚠️ *Please provide an IFSC code.*\n\n👉 *Example:* `/ifsc SBIN0001234`", { parse_mode: 'Markdown' });
+    const msg = await ctx.reply("🏦 *Fetching Bank Details...*");
+    try {
+        const res = await axios.get(`https://ifsc.razorpay.com/${code}`);
+        const d = res.data;
+        let text = `🏛️ *BANK DETAILS FOUND* 🏛️\n━━━━━━━━━━━━━━━━━━\n`;
+        text += `🏦 *Bank:* ${d.BANK}\n`;
+        text += `📍 *Branch:* ${d.BRANCH}\n`;
+        text += `🗺️ *Address:* ${d.ADDRESS}\n`;
+        text += `🏙️ *City:* ${d.CITY}\n`;
+        text += `🚩 *State:* ${d.STATE}\n`;
+        text += `🏧 *UPI:* ${d.UPI ? '✅ Supported' : '❌ Not Supported'}\n`;
+        text += `━━━━━━━━━━━━━━━━━━\n🛡️ @digiintelbot`;
+        await ctx.telegram.editMessageText(ctx.chat.id, msg.message_id, null, text, { parse_mode: 'Markdown' });
+    } catch (e) {
+        await ctx.telegram.editMessageText(ctx.chat.id, msg.message_id, null, "❌ *Invalid IFSC Code or Bank Not Found.*", { parse_mode: 'Markdown' });
+    }
+});
+
 bot.command('admin', async (ctx) => {
     if (ctx.from.id !== ADMIN_ID) return;
     const stats = await db.getStats();
