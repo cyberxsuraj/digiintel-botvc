@@ -1,5 +1,7 @@
 const { Telegraf, Markup } = require('telegraf');
 const axios = require('axios');
+const { exec } = require('child_process');
+const path = require('path');
 const db = require('../database');
 
 const BOT_TOKEN = process.env.BOT_TOKEN;
@@ -58,7 +60,7 @@ bot.start(async (ctx) => {
 });
 
 const sendHelp = (ctx) => {
-    return ctx.reply(`📚 *AVAILABLE COMMANDS*\n\n${DIVIDER}\n🔎 */num <number>* — Search Mobile (1💳)\n🆔 */aadhar <id>* — Search Aadhar (1💳)\n🏦 */ifsc <code>* — Bank Details (FREE)\n💰 */credits* — Check Balance\n🔗 */refer* — Earn Credits\n${DIVIDER}\n👉 Contact @${ADMIN_USERNAME} for bulk access.`, { parse_mode: 'Markdown' });
+    return ctx.reply(`📚 *AVAILABLE COMMANDS*\n\n${DIVIDER}\n🔎 */num <number>* — Search Mobile (1💳)\n🆔 */aadhar <id>* — Search Aadhar (1💳)\n🏎️ */vahan <reg_no>* — Vehicle OSINT (2💳)\n🏦 */ifsc <code>* — Bank Details (FREE)\n💰 */credits* — Check Balance\n🔗 */refer* — Earn Credits\n${DIVIDER}\n👉 Contact @${ADMIN_USERNAME} for bulk access.`, { parse_mode: 'Markdown' });
 };
 bot.action('help', (ctx) => sendHelp(ctx));
 bot.command('help', (ctx) => sendHelp(ctx));
@@ -168,6 +170,48 @@ bot.command('aadhar', async (ctx) => {
             await ctx.telegram.editMessageText(ctx.chat.id, msg.message_id, null, resultText, { parse_mode: 'Markdown' });
         }
     } catch (e) { await ctx.telegram.editMessageText(ctx.chat.id, msg.message_id, null, "⚠️ Search failed."); }
+});
+
+bot.command('vahan', async (ctx) => {
+    if (!(await isMember(ctx))) return;
+    const regNo = ctx.message.text.split(' ')[1];
+    if (!regNo) return ctx.reply(`⚠️ *Oops! Missing Reg Number*\n\n👉 *Example:* \`/vahan GJ01YL8529\``, { parse_mode: 'Markdown' });
+    
+    const user = await db.getUser(ctx.from.id);
+    if (user.credits < 2) return ctx.reply("❌ *Insufficient Credits!* (Needs 2💳)");
+    
+    const msg = await ctx.reply("🛰️ *PULLING SATELLITE DATA...* 🏎️");
+    
+    try {
+        // Calling your Unified DigiIntel API!
+        const response = await axios.get(`${API_URL}/search/vehicle/${regNo}`);
+        const data = response.data;
+        
+        await db.useCredit(ctx.from.id, 2);
+        await db.logSearch('vahan');
+        
+        const ELITE_DIVIDER = '━━━━━━━━━━━━━━━━━━';
+        let report = `⚡ *DIGIINTEL VEHICLE INTELLIGENCE* ⚡\n${ELITE_DIVIDER}\n`;
+        report += `🏎️ *Reg No:* \`${data.registration_no}\`\n`;
+        report += `👤 *Owner:* ${data.owner_name}\n`;
+        report += `🆔 *Chassis:* \`${data.chassis_no}\`\n`;
+        report += `⚙️ *Engine:* \`${data.engine_no}\`\n`;
+        report += `🚘 *Model:* ${data.vehicle_model}\n`;
+        report += `⛽ *Fuel:* ${data.fuel_type}\n`;
+        report += `📅 *Reg Date:* ${data.reg_date}\n`;
+        report += `🛡️ *Insurance:* ${data.insurance_expiry}\n`;
+        report += `${ELITE_DIVIDER}\n🛡️ @digiintelbot`;
+        
+        await ctx.telegram.editMessageText(ctx.chat.id, msg.message_id, null, report, { parse_mode: 'Markdown' });
+        
+    } catch (e) {
+        console.error(e);
+        let errorMsg = "⚠️ *Search Failed. Car might be unknown or API is down.*";
+        if (e.response && e.response.data && e.response.data.detail) {
+            errorMsg = `❌ *API Error:* ${e.response.data.detail}`;
+        }
+        await ctx.telegram.editMessageText(ctx.chat.id, msg.message_id, null, errorMsg, { parse_mode: 'Markdown' });
+    }
 });
 
 // --- ADMIN ---
