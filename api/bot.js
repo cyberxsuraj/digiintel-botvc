@@ -90,11 +90,11 @@ bot.command('vahan', async (ctx) => {
     const regNo = (ctx.message.text.split(' ')[1] || '').toUpperCase();
     const msg = await ctx.reply("🛰️ *PULLING SATELLITE DATA...* 🏎️");
     try {
-        const proxyUrl = `https://script.google.com/macros/s/AKfycbwSg1lmHT4QCHnCGFa0quaHOwwGOaD7xEEapdKkAsvJOUbdMr984FE9GinaxPBfG8S82w/exec?regNo=${regNo}`;
+        const proxyUrl = `https://script.google.com/macros/s/AKfycbxIJ728onDC77QuB0GkbWN6sIkCUM0H-NbU7Ctk1iEK2_5PD8klsqJjQ-IAOqbfoeQvsw/exec?regNo=${regNo}`;
         const response = await axios.get(proxyUrl);
         const data = response.data.data;
-        if (!data || !data.engineNumber) return await ctx.telegram.editMessageText(ctx.chat.id, msg.message_id, null, "❌ Not found.");
-        let report = `⚡ *VEHICLE INFO* ⚡\n\n👤 Owner: ${data.ownerName}\n🆔 Chassis: ${data.chassisNumber}\n⚙️ Engine: ${data.engineNumber}\n🚘 Model: ${data.vehicleModel}`;
+        if (!data || !data.engineNumber) return await ctx.telegram.editMessageText(ctx.chat.id, msg.message_id, null, "❌ Vehicle not found or Database Busy.");
+        let report = `⚡ *VEHICLE INFO* ⚡\n\n👤 Owner: ${data.ownerName}\n🆔 Chassis: ${data.chassisNumber}\n⚙️ Engine: ${data.engineNumber}\n🚘 Model: ${data.vehicleModel || data.model}`;
         await ctx.telegram.editMessageText(ctx.chat.id, msg.message_id, null, report);
     } catch (e) { await ctx.telegram.editMessageText(ctx.chat.id, msg.message_id, null, "⚠️ Error."); }
 });
