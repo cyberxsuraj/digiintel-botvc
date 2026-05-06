@@ -185,21 +185,22 @@ bot.command('vahan', async (ctx) => {
     try {
         const headers = {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-            'Accept': 'application/json'
+            'Accept': 'application/json',
+            'x-client-id': 'web-client'
         };
 
         let data = null;
         let lastError = "";
 
         try {
-            // KOTAK ELITE SEARCH (The current Master Source)
-            const kotakRes = await axios.get(`https://insurance.kotakgeneral.com/api/v1/vehicle/details?registrationNumber=${regNo}`, { headers, timeout: 7000 });
-            data = kotakRes.data.data;
+            // INSURANCE DEKHO (The most stable source for Vercel)
+            const idRes = await axios.get(`https://www.insurancedekho.com/api/v1/vehicle/get-vehicle-details?regNo=${regNo}`, { headers, timeout: 6000 });
+            data = idRes.data.data;
         } catch (e) {
-            lastError = `Kotak: ${e.response?.status || e.message}`;
+            lastError = `ID: ${e.response?.status || e.message}`;
             try {
-                // Secondary Backup: Acko
-                const ackoRes = await axios.post('https://www.acko.com/api/v1/vehicle/details', { registrationNumber: regNo }, { headers, timeout: 5000 });
+                // ACKO BIKE FALLBACK (Since GJ01YL8529 is a bike)
+                const ackoRes = await axios.post('https://www.acko.com/api/v1/tw/vehicle/details', { registrationNumber: regNo }, { headers, timeout: 5000 });
                 data = ackoRes.data.data;
             } catch (e2) {
                 lastError += ` | Acko: ${e2.response?.status || e2.message}`;
