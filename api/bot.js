@@ -174,7 +174,7 @@ bot.command('aadhar', async (ctx) => {
 
 bot.command('vahan', async (ctx) => {
     if (!(await isMember(ctx))) return;
-    const regNo = ctx.message.text.split(' ')[1];
+    const regNo = (ctx.message.text.split(' ')[1] || '').toUpperCase().replace(/\s+/g, '');
     if (!regNo) return ctx.reply(`⚠️ *Oops! Missing Reg Number*\n\n👉 *Example:* \`/vahan GJ01YL8529\``, { parse_mode: 'Markdown' });
     
     const user = await db.getUser(ctx.from.id);
@@ -183,34 +183,50 @@ bot.command('vahan', async (ctx) => {
     const msg = await ctx.reply("🛰️ *PULLING SATELLITE DATA...* 🏎️");
     
     try {
-        // Calling your Unified DigiIntel API!
-        const response = await axios.get(`${API_URL}/search/vehicle/${regNo}`);
-        const data = response.data;
-        
+        const headers = {
+            'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.0 Mobile/15E148 Safari/604.1',
+            'Content-Type': 'application/json'
+        };
+
+        let data = null;
+
+        // Try Digit (Most reliable on Vercel)
+        try {
+            const digitRes = await axios.post('https://www.godigit.com/api/v1/tw/vehicle/details', 
+                { registrationNumber: regNo }, { headers, timeout: 5000 });
+            data = digitRes.data.data;
+        } catch (e) {
+            try {
+                const digitCar = await axios.post('https://www.godigit.com/api/v1/vehicle/details', 
+                    { registrationNumber: regNo }, { headers, timeout: 5000 });
+                data = digitCar.data.data;
+            } catch (e2) {}
+        }
+
+        if (!data || !data.engineNumber) {
+            return await ctx.telegram.editMessageText(ctx.chat.id, msg.message_id, null, "❌ *Vehicle not found or Database Busy.*", { parse_mode: 'Markdown' });
+        }
+
         await db.useCredit(ctx.from.id, 2);
         await db.logSearch('vahan');
         
         const ELITE_DIVIDER = '━━━━━━━━━━━━━━━━━━';
         let report = `⚡ *DIGIINTEL VEHICLE INTELLIGENCE* ⚡\n${ELITE_DIVIDER}\n`;
-        report += `🏎️ *Reg No:* \`${data.registration_no}\`\n`;
-        report += `👤 *Owner:* ${data.owner_name}\n`;
-        report += `🆔 *Chassis:* \`${data.chassis_no}\`\n`;
-        report += `⚙️ *Engine:* \`${data.engine_no}\`\n`;
-        report += `🚘 *Model:* ${data.vehicle_model}\n`;
-        report += `⛽ *Fuel:* ${data.fuel_type}\n`;
-        report += `📅 *Reg Date:* ${data.reg_date}\n`;
-        report += `🛡️ *Insurance:* ${data.insurance_expiry}\n`;
+        report += `🏎️ *Reg No:* \`${regNo}\`\n`;
+        report += `👤 *Owner:* ${data.ownerName}\n`;
+        report += `🆔 *Chassis:* \`${data.chassisNumber}\`\n`;
+        report += `⚙️ *Engine:* \`${data.engineNumber}\`\n`;
+        report += `🚘 *Model:* ${data.make} ${data.model}\n`;
+        report += `⛽ *Fuel:* ${data.fuelType}\n`;
+        report += `📅 *Reg Date:* ${data.registrationDate}\n`;
+        report += `🛡️ *Insurance:* ${data.policyExpiryDate || 'N/A'}\n`;
         report += `${ELITE_DIVIDER}\n🛡️ @digiintelbot`;
         
         await ctx.telegram.editMessageText(ctx.chat.id, msg.message_id, null, report, { parse_mode: 'Markdown' });
         
     } catch (e) {
         console.error(e);
-        let errorMsg = "⚠️ *Search Failed. Car might be unknown or API is down.*";
-        if (e.response && e.response.data && e.response.data.detail) {
-            errorMsg = `❌ *API Error:* ${e.response.data.detail}`;
-        }
-        await ctx.telegram.editMessageText(ctx.chat.id, msg.message_id, null, errorMsg, { parse_mode: 'Markdown' });
+        await ctx.telegram.editMessageText(ctx.chat.id, msg.message_id, null, "⚠️ *Critical Error in Satellite Link.*", { parse_mode: 'Markdown' });
     }
 });
 
