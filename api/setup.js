@@ -18,6 +18,7 @@ module.exports = async (req, res) => {
             { command: 'start', description: '🚀 Start DigiIntel' },
             { command: 'num', description: '🔎 Search Mobile Number' },
             { command: 'aadhar', description: '🆔 Search Aadhar ID' },
+            { command: 'ifsc', description: '🏦 Bank/IFSC Search' },
             { command: 'refer', description: '🔗 Invite & Earn' },
             { command: 'credits', description: '💰 Check Balance' },
             { command: 'help', description: '📖 View Help & Pricing' }
@@ -27,6 +28,7 @@ module.exports = async (req, res) => {
             { command: 'start', description: '🚀 Start DigiIntel' },
             { command: 'num', description: '🔎 Search Mobile Number' },
             { command: 'aadhar', description: '🆔 Search Aadhar ID' },
+            { command: 'ifsc', description: '🏦 Bank/IFSC Search' },
             { command: 'refer', description: '🔗 Invite & Earn' },
             { command: 'credits', description: '💰 Check Balance' },
             { command: 'help', description: '📖 View Help & Pricing' },
