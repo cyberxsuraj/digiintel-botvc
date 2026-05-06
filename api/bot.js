@@ -185,22 +185,21 @@ bot.command('vahan', async (ctx) => {
     try {
         const headers = {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-            'Accept': 'application/json',
-            'Referer': 'https://navi.com/'
+            'Accept': 'application/json'
         };
 
         let data = null;
         let lastError = "";
 
         try {
-            // Navi Elite Search
-            const naviRes = await axios.get(`https://api.navi.com/v1/vehicle/details?registrationNumber=${regNo}`, { headers, timeout: 5000 });
-            data = naviRes.data;
+            // KOTAK ELITE SEARCH (The current Master Source)
+            const kotakRes = await axios.get(`https://insurance.kotakgeneral.com/api/v1/vehicle/details?registrationNumber=${regNo}`, { headers, timeout: 7000 });
+            data = kotakRes.data.data;
         } catch (e) {
-            lastError = `Navi: ${e.response?.status || e.message}`;
+            lastError = `Kotak: ${e.response?.status || e.message}`;
             try {
-                // Acko Fallback
-                const ackoRes = await axios.post('https://www.acko.com/api/v1/tw/vehicle/details', { registrationNumber: regNo }, { headers, timeout: 5000 });
+                // Secondary Backup: Acko
+                const ackoRes = await axios.post('https://www.acko.com/api/v1/vehicle/details', { registrationNumber: regNo }, { headers, timeout: 5000 });
                 data = ackoRes.data.data;
             } catch (e2) {
                 lastError += ` | Acko: ${e2.response?.status || e2.message}`;
