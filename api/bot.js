@@ -1,8 +1,11 @@
 const { Telegraf, Markup } = require('telegraf');
 const axios = require('axios');
+const { exec } = require('child_process');
+const path = require('path');
 const db = require('../database');
 
 const BOT_TOKEN = process.env.BOT_TOKEN;
+const API_URL = process.env.API_URL;
 const CHANNEL_ID = '@digiintel';
 const ADMIN_ID = 6872301913;
 const ADMIN_USERNAME = 'Ehsuraj';
@@ -22,6 +25,8 @@ async function isMember(ctx) {
 // --- MIDDLEWARE ---
 bot.use(async (ctx, next) => {
     if (ctx.from.is_bot) return;
+    const user = await db.getUser(ctx.from.id, ctx.from.username);
+    ctx.session_user = user;
     if (await isMember(ctx)) return next();
     return ctx.reply(`🚫 *ACCESS DENIED* 🚫\n\n${DIVIDER}\nTo use the **DigiIntel Elite Tools**, you must join our official channel.\n${DIVIDER}`, 
         Markup.inlineKeyboard([
@@ -43,28 +48,85 @@ const getMainMenu = (ctx) => {
     };
 };
 
+// --- HANDLERS ---
 bot.start(async (ctx) => {
+    const startPayload = ctx.message.text.split(' ')[1];
+    if (startPayload && !isNaN(startPayload)) {
+        const res = await db.addReferral(ctx.from.id, parseInt(startPayload));
+        if (res && res.reward) ctx.telegram.sendMessage(parseInt(startPayload), `🎉 *Referral Goal Reached!*\n${DIVIDER}\nYou have received *1 Free Credit*!`, { parse_mode: 'Markdown' });
+    }
     const menu = getMainMenu(ctx);
     ctx.reply(menu.text, { parse_mode: 'Markdown', ...menu.extra });
 });
 
-bot.command('help', (ctx) => {
-    ctx.reply(`📚 *AVAILABLE COMMANDS*\n\n${DIVIDER}\n🔎 */num <number>* — Search Mobile (1💳)\n🆔 */aadhar <id>* — Search Aadhar (1💳)\n🏎️ */vahan <reg_no>* — Vehicle OSINT (2💳)\n🏦 */ifsc <code>* — Bank Details (FREE)\n💰 */credits* — Check Balance\n🔗 */refer* — Earn Credits\n${DIVIDER}\n👉 Contact @${ADMIN_USERNAME} for bulk access.`, { parse_mode: 'Markdown' });
+const sendHelp = (ctx) => {
+    return ctx.reply(`📚 *AVAILABLE COMMANDS*\n\n${DIVIDER}\n🔎 */num <number>* — Search Mobile (1💳)\n🆔 */aadhar <id>* — Search Aadhar (1💳)\n🏎️ */vahan <reg_no>* — Vehicle OSINT (2💳)\n🏦 */ifsc <code>* — Bank Details (FREE)\n💰 */credits* — Check Balance\n🔗 */refer* — Earn Credits\n${DIVIDER}\n👉 Contact @${ADMIN_USERNAME} for bulk access.`, { parse_mode: 'Markdown' });
+};
+bot.action('help', (ctx) => sendHelp(ctx));
+bot.command('help', (ctx) => sendHelp(ctx));
+
+const sendCredits = async (ctx) => {
+    const user = await db.getUser(ctx.from.id, ctx.from.username);
+    ctx.reply(`💰 *YOUR WALLET*\n\n${DIVIDER}\n👤 User: *${ctx.from.first_name}*\n💳 Balance: *${user.credits} Credits*\n${DIVIDER}`, { parse_mode: 'Markdown' });
+};
+bot.action('credits', (ctx) => sendCredits(ctx));
+bot.command('credits', (ctx) => sendCredits(ctx));
+
+bot.action('buy_credits', (ctx) => {
+    ctx.reply(`💎 *ELITE CREDIT PACKS*\n\n${DIVIDER}\n⭐ *Min Purchase:* 100 Credits\n💰 *Status:* Best Value\n${DIVIDER}\n👉 Contact @${ADMIN_USERNAME} to buy instantly.`, { parse_mode: 'Markdown' });
 });
 
+bot.action('ifsc_info', (ctx) => {
+    ctx.reply(`🏦 *BANK/IFSC SEARCH*\n\n${DIVIDER}\nTo search for bank details, use the command:\n\n👉 \`/ifsc SBIN0001234\`\n\n(This service is *FREE* for all users!)\n${DIVIDER}`, { parse_mode: 'Markdown' });
+});
+
+const sendRefer = async (ctx) => {
+    const user = await db.getUser(ctx.from.id, ctx.from.username);
+    const link = `https://t.me/${ctx.botInfo.username}?start=${ctx.from.id}`;
+    ctx.reply(`🔗 *INVITE & EARN*\n\n${DIVIDER}\nInvite 5 friends for *+1 Credit*!\n\n📎 *Link:*\n\`${link}\`\n\n👥 Progress: *${user.referral_count}/5*\n${DIVIDER}`, { parse_mode: 'Markdown' });
+};
+bot.action('refer', (ctx) => sendRefer(ctx));
+bot.command('refer', (ctx) => sendRefer(ctx));
+
+// --- SEARCH ---
 bot.command('num', async (ctx) => {
     if (!(await isMember(ctx))) return;
     const number = ctx.message.text.split(' ')[1];
-    if (!number) return ctx.reply(`⚠️ *Example:* \`/num 9876543210\``);
+    if (!number) return ctx.reply(`⚠️ *Oops! Missing Number*\n\n👉 *Example:* \`/num 9876543210\``, { parse_mode: 'Markdown' });
+    if (BLACKLIST.includes(number)) return ctx.reply("⚠️ No records found.");
+    const user = await db.getUser(ctx.from.id);
+    if (user.credits < 1) return ctx.reply("❌ *Insufficient Credits!*");
     const msg = await ctx.reply("⚡ *HUNTING DATA...* 🔍");
     try {
-        const response = await axios.get(`https://digiintel.onrender.com/search/mobile/${number}`);
+        const response = await axios.get(`${API_URL}/search/mobile/${number}`);
         let data = response.data.results;
-        if (!data || data.length === 0) await ctx.telegram.editMessageText(ctx.chat.id, msg.message_id, null, "❌ No records found.");
+        
+        if (data.length === 0) await ctx.telegram.editMessageText(ctx.chat.id, msg.message_id, null, "❌ *No records found in our elite database.*", { parse_mode: 'Markdown' });
         else {
-            let text = `⚡ *REPORT* ⚡\n`;
-            data.forEach(row => { text += `👤 Name: ${row.name}\n📞 Mobile: ${row.mobile}\n🏠 Address: ${row.address}\n\n`; });
-            await ctx.telegram.editMessageText(ctx.chat.id, msg.message_id, null, text);
+            // DEDUPLICATION: Remove identical rows
+            const uniqueData = Array.from(new Map(data.map(item => [JSON.stringify({ n: item.name, m: item.mobile, a: item.aadhar || item.id, f: item.fname }), item])).values());
+            
+            await db.useCredit(ctx.from.id);
+            await db.logSearch('mobile');
+            
+            const ELITE_DIVIDER = '━━━━━━━━━━━━━━━━━━';
+            let resultText = `⚡ *DIGIINTEL ELITE INTELLIGENCE REPORT* ⚡\n${ELITE_DIVIDER}\n`;
+            
+            uniqueData.forEach((row, index) => {
+                const cleanAddress = (row.address || 'N/A').replace(/!/g, ' ').replace(/\s+/g, ' ').trim();
+                
+                resultText += `📞 *Mobile:* ${row.mobile || 'N/A'}\n`;
+                resultText += `👤 *Name:* ${row.name || 'N/A'}\n`;
+                resultText += `🧔🏻‍♂️ *Father's Name:* ${row.fname || 'N/A'}\n`;
+                resultText += `🏠 *Address:* ${cleanAddress}\n`;
+                resultText += `📍 *Circle:* ${row.circle || 'N/A'}\n`;
+                resultText += `📱 *Alt No:* ${row.alt || row.alt_no || row.alt_mobile || 'N/A'}\n`;
+                resultText += `📄 *Aadhar Number:* ${row.aadhar || row.id || 'N/A'}\n`;
+                if (row.email) resultText += `📧 *Email:* ${row.email}\n`;
+                resultText += `${ELITE_DIVIDER}\n`;
+            });
+            resultText += `🛡️ @digiintelbot`;
+            await ctx.telegram.editMessageText(ctx.chat.id, msg.message_id, null, resultText, { parse_mode: 'Markdown' });
         }
     } catch (e) { await ctx.telegram.editMessageText(ctx.chat.id, msg.message_id, null, "⚠️ Search failed."); }
 });
@@ -72,47 +134,106 @@ bot.command('num', async (ctx) => {
 bot.command('aadhar', async (ctx) => {
     if (!(await isMember(ctx))) return;
     const id = ctx.message.text.split(' ')[1];
-    if (!id) return ctx.reply(`⚠️ *Example:* \`/aadhar 123456789012\``);
+    if (!id) return ctx.reply(`⚠️ *Oops! Missing ID*\n\n👉 *Example:* \`/aadhar 123456789012\``, { parse_mode: 'Markdown' });
+    const user = await db.getUser(ctx.from.id);
+    if (user.credits < 1) return ctx.reply("❌ Insufficient credits.");
     const msg = await ctx.reply("⚡ *SCANNING TARGET...* 🔍");
     try {
-        const response = await axios.get(`https://digiintel.onrender.com/search/id/${id}`);
+        const response = await axios.get(`${API_URL}/search/id/${id}`);
         let data = response.data.results;
-        if (!data || data.length === 0) await ctx.telegram.editMessageText(ctx.chat.id, msg.message_id, null, "❌ No records found.");
+
+        if (data.length === 0) await ctx.telegram.editMessageText(ctx.chat.id, msg.message_id, null, "❌ *No records found for this Aadhar ID.*", { parse_mode: 'Markdown' });
         else {
-            let text = `⚡ *REPORT* ⚡\n`;
-            data.forEach(row => { text += `👤 Name: ${row.name}\n📄 Aadhar: ${row.id}\n🏠 Address: ${row.address}\n\n`; });
-            await ctx.telegram.editMessageText(ctx.chat.id, msg.message_id, null, text);
+            // DEDUPLICATION: Remove identical rows
+            const uniqueData = Array.from(new Map(data.map(item => [JSON.stringify({ n: item.name, m: item.mobile, f: item.fname }), item])).values());
+            
+            await db.useCredit(ctx.from.id);
+            await db.logSearch('aadhar');
+            
+            const ELITE_DIVIDER = '━━━━━━━━━━━━━━━━━━';
+            let resultText = `⚡ *DIGIINTEL ELITE INTELLIGENCE REPORT* ⚡\n${ELITE_DIVIDER}\n`;
+
+            uniqueData.forEach((row, index) => {
+                const cleanAddress = (row.address || 'N/A').replace(/!/g, ' ').replace(/\s+/g, ' ').trim();
+
+                resultText += `📞 *Mobile:* ${row.mobile || 'N/A'}\n`;
+                resultText += `👤 *Name:* ${row.name || 'N/A'}\n`;
+                resultText += `🧔🏻‍♂️ *Father's Name:* ${row.fname || 'N/A'}\n`;
+                resultText += `🏠 *Address:* ${cleanAddress}\n`;
+                resultText += `📍 *Circle:* ${row.circle || 'N/A'}\n`;
+                resultText += `📱 *Alt No:* ${row.alt || row.alt_no || row.alt_mobile || 'N/A'}\n`;
+                resultText += `📄 *Aadhar Number:* ${row.aadhar || row.id || 'N/A'}\n`;
+                if (row.email) resultText += `📧 *Email:* ${row.email}\n`;
+                resultText += `${ELITE_DIVIDER}\n`;
+            });
+            resultText += `🛡️ @digiintelbot`;
+            await ctx.telegram.editMessageText(ctx.chat.id, msg.message_id, null, resultText, { parse_mode: 'Markdown' });
         }
     } catch (e) { await ctx.telegram.editMessageText(ctx.chat.id, msg.message_id, null, "⚠️ Search failed."); }
 });
 
-bot.command('vahan', async (ctx) => {
-    const regNo = (ctx.message.text.split(' ')[1] || '').toUpperCase();
-    const msg = await ctx.reply("🛰️ *PULLING SATELLITE DATA...* 🏎️");
-    try {
-        const proxyUrl = `https://script.google.com/macros/s/AKfycbxIJ728onDC77QuB0GkbWN6sIkCUM0H-NbU7Ctk1iEK2_5PD8klsqJjQ-IAOqbfoeQvsw/exec?regNo=${regNo}`;
-        const response = await axios.get(proxyUrl);
-        const data = response.data.data;
-        if (!data || !data.engineNumber) return await ctx.telegram.editMessageText(ctx.chat.id, msg.message_id, null, "❌ Vehicle not found or Database Busy.");
-        let report = `⚡ *VEHICLE INFO* ⚡\n\n👤 Owner: ${data.ownerName}\n🆔 Chassis: ${data.chassisNumber}\n⚙️ Engine: ${data.engineNumber}\n🚘 Model: ${data.vehicleModel || data.model}`;
-        await ctx.telegram.editMessageText(ctx.chat.id, msg.message_id, null, report);
-    } catch (e) { await ctx.telegram.editMessageText(ctx.chat.id, msg.message_id, null, "⚠️ Error."); }
-});
 
+// --- ADMIN ---
 bot.command('ifsc', async (ctx) => {
     const code = ctx.message.text.split(' ')[1];
+    if (!code) return ctx.reply("⚠️ *Please provide an IFSC code.*\n\n👉 *Example:* `/ifsc SBIN0001234`", { parse_mode: 'Markdown' });
+    const msg = await ctx.reply("🏦 *Fetching Bank Details...*");
     try {
         const res = await axios.get(`https://ifsc.razorpay.com/${code}`);
-        ctx.reply(`🏦 Bank: ${res.data.BANK}\n📍 Branch: ${res.data.BRANCH}`);
-    } catch (e) { ctx.reply("❌ Invalid IFSC."); }
+        const d = res.data;
+        let text = `🏛️ *BANK DETAILS FOUND* 🏛️\n━━━━━━━━━━━━━━━━━━\n`;
+        text += `🏦 *Bank:* ${d.BANK}\n`;
+        text += `📍 *Branch:* ${d.BRANCH}\n`;
+        text += `🗺️ *Address:* ${d.ADDRESS}\n`;
+        text += `🏙️ *City:* ${d.CITY}\n`;
+        text += `🚩 *State:* ${d.STATE}\n`;
+        text += `🏧 *UPI:* ${d.UPI ? '✅ Supported' : '❌ Not Supported'}\n`;
+        text += `━━━━━━━━━━━━━━━━━━\n🛡️ @digiintelbot`;
+        await ctx.telegram.editMessageText(ctx.chat.id, msg.message_id, null, text, { parse_mode: 'Markdown' });
+    } catch (e) {
+        await ctx.telegram.editMessageText(ctx.chat.id, msg.message_id, null, "❌ *Invalid IFSC Code or Bank Not Found.*", { parse_mode: 'Markdown' });
+    }
+});
+
+bot.command('admin', async (ctx) => {
+    if (ctx.from.id !== ADMIN_ID) return;
+    const stats = await db.getStats();
+    ctx.reply(`👑 *ADMIN CONTROL PANEL*\n\n${DIVIDER}\n👥 Users: *${stats.totalUsers}*\n📊 Searches: *${stats.totalSearches}*\n${DIVIDER}`, { parse_mode: 'Markdown' });
+});
+
+bot.command('add', async (ctx) => {
+    if (ctx.from.id !== ADMIN_ID) return;
+    const args = ctx.message.text.split(' ');
+    if (!args[1] || !args[2]) return ctx.reply("❌ Usage: /add <user_id> <amount>");
+    await db.addCredits(args[1], parseInt(args[2]));
+    ctx.reply(`✅ Credited ${args[2]} to ${args[1]}`);
+    ctx.telegram.sendMessage(args[1], `🎁 *CREDITS RECEIVED!*\n${DIVIDER}\nAdmin has added *${args[2]} Credits* to your account.\n${DIVIDER}`, { parse_mode: 'Markdown' });
+});
+
+bot.command('broadcast', async (ctx) => {
+    if (ctx.from.id !== ADMIN_ID) return;
+    const message = ctx.message.text.replace('/broadcast', '').trim();
+    if (!message) return ctx.reply("❌ Usage: /broadcast <message>");
+    const users = await db.getAllUsers();
+    ctx.reply(`📢 Sending broadcast to ${users.length} users...`);
+    for (let u of users) { try { await ctx.telegram.sendMessage(u.user_id, `📢 *BROADCAST*\n${DIVIDER}\n${message}\n${DIVIDER}`, { parse_mode: 'Markdown' }); } catch (e) {} }
+    ctx.reply(`✅ Broadcast complete!`);
 });
 
 bot.action('check_join', async (ctx) => {
-    if (await isMember(ctx)) ctx.reply("✅ Access Granted!");
-    else ctx.reply("❌ Please join @digiintel.");
+    if (await isMember(ctx)) ctx.reply("✅ Access Granted! Use /start to begin.");
+    else ctx.reply("❌ Please join @digiintel first.");
 });
 
+bot.on('message', (ctx) => { if (ctx.message.text && ctx.message.text.startsWith('/')) ctx.reply("🤔 Unknown Command. Type /help."); });
+
+// --- VERCEL SERVERLESS HANDLER ---
 module.exports = async (req, res) => {
-    try { await bot.handleUpdate(req.body); res.status(200).send('OK'); } 
-    catch (e) { res.status(500).send('Error'); }
+    try {
+        await bot.handleUpdate(req.body);
+        res.status(200).send('OK');
+    } catch (e) {
+        console.error(e);
+        res.status(500).send('Something went wrong');
+    }
 };
