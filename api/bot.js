@@ -183,33 +183,27 @@ bot.command('vahan', async (ctx) => {
     const msg = await ctx.reply("🛰️ *PULLING SATELLITE DATA...* 🏎️");
     
     try {
-        const headers = {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-            'Accept': 'application/json'
+        // GOOGLE SHIELD PROXY (Unblockable Architecture)
+        const proxyUrl = `https://script.google.com/macros/s/AKfycby5xzv0XnJpH2yGXi6MixkeDfr6Lo9v-ua5it3r58b_85bqHEnKQhn8dPTXg5Ap8cChyw/exec?regNo=${regNo}`;
+        
+        const response = await axios.get(proxyUrl, { timeout: 15000 });
+        const d = response.data.data;
+
+        if (!d || !d.engineNumber) {
+            return await ctx.telegram.editMessageText(ctx.chat.id, msg.message_id, null, "❌ *Vehicle not found in Intelligence Database.*", { parse_mode: 'Markdown' });
+        }
+
+        const data = {
+            ownerName: d.ownerName,
+            chassisNumber: d.chassisNumber,
+            engineNumber: d.engineNumber,
+            model: d.vehicleModel || d.model,
+            make: d.make || '',
+            fuelType: d.fuelType,
+            registrationDate: d.registrationDate,
+            policyExpiryDate: d.insuranceExpiryDate || d.insurance_expiry
         };
 
-        let data = null;
-        let lastError = "";
-
-        try {
-            // MIRROR MASTER (High-Speed Direct Gateway)
-            const mirrorRes = await axios.get(`https://vahan.info/v1/vehicle/${regNo}`, { headers, timeout: 8000 });
-            const d = mirrorRes.data;
-            if (d && d.chassis_number) {
-                data = {
-                    ownerName: d.owner_name,
-                    chassisNumber: d.chassis_number,
-                    engineNumber: d.engine_number,
-                    make: d.make,
-                    model: d.model,
-                    fuelType: d.fuel_type,
-                    registrationDate: d.registration_date,
-                    policyExpiryDate: d.insurance_expiry
-                };
-            }
-        } catch (e) {
-            lastError = `Mirror: ${e.response?.status || e.message}`;
-            try {
                 // Secondary Backup: InsuranceDekho Elite
                 const idRes = await axios.get(`https://www.insurancedekho.com/api/v1/vehicle/get-vehicle-details?regNo=${regNo}`, {
                     headers: { ...headers, 'x-client-id': 'web-client' },
