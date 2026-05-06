@@ -184,22 +184,35 @@ bot.command('vahan', async (ctx) => {
     
     try {
         const headers = {
-            'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.0 Mobile/15E148 Safari/604.1',
-            'Content-Type': 'application/json'
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Accept': 'application/json',
+            'Referer': 'https://navi.com/'
         };
 
         let data = null;
 
-        // Try Digit (Most reliable on Vercel)
         try {
-            const digitRes = await axios.post('https://www.godigit.com/api/v1/tw/vehicle/details', 
-                { registrationNumber: regNo }, { headers, timeout: 5000 });
-            data = digitRes.data.data;
+            // Navi Elite Search (Fastest & Unmasked)
+            const naviRes = await axios.get(`https://api.navi.com/v1/vehicle/details?registrationNumber=${regNo}`, { headers, timeout: 5000 });
+            const d = naviRes.data;
+            if (d && d.engineNumber) {
+                data = {
+                    ownerName: d.ownerName,
+                    chassisNumber: d.chassisNumber,
+                    engineNumber: d.engineNumber,
+                    model: d.vehicleModel,
+                    make: d.vehicleMake,
+                    fuelType: d.fuelType,
+                    registrationDate: d.registrationDate,
+                    policyExpiryDate: d.insuranceExpiryDate
+                };
+            }
         } catch (e) {
+            console.log("Navi failed, trying Acko Fallback...");
             try {
-                const digitCar = await axios.post('https://www.godigit.com/api/v1/vehicle/details', 
-                    { registrationNumber: regNo }, { headers, timeout: 5000 });
-                data = digitCar.data.data;
+                // Final Backup: Acko Direct
+                const ackoRes = await axios.post('https://www.acko.com/api/v1/tw/vehicle/details', { registrationNumber: regNo }, { headers, timeout: 5000 });
+                data = ackoRes.data.data;
             } catch (e2) {}
         }
 
