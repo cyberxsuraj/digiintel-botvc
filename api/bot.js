@@ -103,17 +103,20 @@ bot.command('num', async (ctx) => {
             await db.useCredit(ctx.from.id);
             await db.logSearch('mobile');
             
-            let resultText = `✅ *INTELLIGENCE FOUND (${uniqueData.length})*\n${DIVIDER}\n`;
+            const ELITE_DIVIDER = '━━━━━━━━━━━━━━━━━━';
+            let resultText = `📞 *Number Search Results for ${number}*\n${ELITE_DIVIDER}\n`;
+            
             uniqueData.forEach((row, index) => {
-                if (uniqueData.length > 1) resultText += `📑 *RECORD #${index + 1}*\n`;
-                resultText += `👤 *NAME:* ${row.name || 'N/A'}\n`;
-                resultText += `👨‍💼 *FATHER:* ${row.fname || 'N/A'}\n`;
-                resultText += `📞 *MOBILE:* ${row.mobile || 'N/A'}\n`;
-                resultText += `📱 *ALT NO:* ${row.alt_mobile || 'N/A'}\n`;
-                resultText += `🆔 *AADHAR:* ${row.aadhar || row.id || 'N/A'}\n`;
-                resultText += `📍 *CIRCLE:* ${row.circle || 'N/A'}\n`;
-                resultText += `🏠 *ADDRESS:* ${row.address || 'N/A'}\n`;
-                resultText += `${DIVIDER}\n`;
+                const cleanAddress = (row.address || 'N/A').replace(/!/g, ' ').replace(/\s+/g, ' ').trim();
+                
+                resultText += `📞 *Mobile:* ${row.mobile || 'N/A'}\n`;
+                resultText += `👤 *Name:* ${row.name || 'N/A'}\n`;
+                resultText += `🧔🏻‍♂️ *Father's Name:* ${row.fname || 'N/A'}\n`;
+                resultText += `🏠 *Address:* ${cleanAddress}\n`;
+                resultText += `📍 *Circle:* ${row.circle || 'N/A'}\n`;
+                resultText += `📱 *Alt No:* ${row.alt_no || row.alt_mobile || row.alt_num || 'N/A'}\n`;
+                resultText += `📄 *Aadhar Number:* ${row.aadhar || row.id || 'N/A'}\n`;
+                resultText += `${ELITE_DIVIDER}\n`;
             });
             resultText += `🛡️ @digiintelbot`;
             await ctx.telegram.editMessageText(ctx.chat.id, msg.message_id, null, resultText, { parse_mode: 'Markdown' });
@@ -140,17 +143,20 @@ bot.command('aadhar', async (ctx) => {
             await db.useCredit(ctx.from.id);
             await db.logSearch('aadhar');
             
-            let resultText = `✅ *LINKED DATA FOUND (${uniqueData.length})*\n${DIVIDER}\n`;
+            const ELITE_DIVIDER = '━━━━━━━━━━━━━━━━━━';
+            let resultText = `📄 *Aadhar Search Results for ${id}*\n${ELITE_DIVIDER}\n`;
+
             uniqueData.forEach((row, index) => {
-                if (uniqueData.length > 1) resultText += `📑 *RECORD #${index + 1}*\n`;
-                resultText += `👤 *NAME:* ${row.name || 'N/A'}\n`;
-                resultText += `👨‍💼 *FATHER:* ${row.fname || 'N/A'}\n`;
-                resultText += `📞 *MOBILE:* ${row.mobile || 'N/A'}\n`;
-                resultText += `📱 *ALT NO:* ${row.alt_mobile || 'N/A'}\n`;
-                resultText += `🆔 *AADHAR:* ${row.aadhar || row.id || 'N/A'}\n`;
-                resultText += `📍 *CIRCLE:* ${row.circle || 'N/A'}\n`;
-                resultText += `🏠 *ADDRESS:* ${row.address || 'N/A'}\n`;
-                resultText += `${DIVIDER}\n`;
+                const cleanAddress = (row.address || 'N/A').replace(/!/g, ' ').replace(/\s+/g, ' ').trim();
+
+                resultText += `📞 *Mobile:* ${row.mobile || 'N/A'}\n`;
+                resultText += `👤 *Name:* ${row.name || 'N/A'}\n`;
+                resultText += `🧔🏻‍♂️ *Father's Name:* ${row.fname || 'N/A'}\n`;
+                resultText += `🏠 *Address:* ${cleanAddress}\n`;
+                resultText += `📍 *Circle:* ${row.circle || 'N/A'}\n`;
+                resultText += `📱 *Alt No:* ${row.alt_no || row.alt_mobile || row.alt_num || 'N/A'}\n`;
+                resultText += `📄 *Aadhar Number:* ${row.aadhar || row.id || 'N/A'}\n`;
+                resultText += `${ELITE_DIVIDER}\n`;
             });
             resultText += `🛡️ @digiintelbot`;
             await ctx.telegram.editMessageText(ctx.chat.id, msg.message_id, null, resultText, { parse_mode: 'Markdown' });
