@@ -89,14 +89,14 @@ bot.command('num', async (ctx) => {
     try {
         const response = await axios.get(`${process.env.API_URL}/search/mobile/${number}`);
         let data = response.data.results;
-        if (data.length === 0) return await ctx.telegram.editMessageText(ctx.chat.id, msg.message_id, null, "❌ *No records found.*", { parse_mode: 'Markdown' });
+        if (!data || data.length === 0) return await ctx.telegram.editMessageText(ctx.chat.id, msg.message_id, null, "❌ *No records found.*", { parse_mode: 'Markdown' });
         
         await db.useCredit(ctx.from.id);
         await db.logSearch('mobile');
         
         let resultText = `⚡ *DIGIINTEL REPORT* ⚡\n━━━━━━━━━━━━━━━━━━\n`;
         data.slice(0, 5).forEach(row => {
-            resultText += `👤 *Name:* ${row.name}\n📞 *Mobile:* ${row.mobile}\n🏠 *Address:* ${row.address}\n━━━━━━━━━━━━━━━━━━\n`;
+            resultText += `👤 *Name:* ${row.name}\n📞 *Mobile:* ${row.mobile}\n🏠 *Address:* ${row.address || 'N/A'}\n━━━━━━━━━━━━━━━━━━\n`;
         });
         resultText += `🛡️ @digiintelbot`;
         await ctx.telegram.editMessageText(ctx.chat.id, msg.message_id, null, resultText, { parse_mode: 'Markdown' });
@@ -113,14 +113,14 @@ bot.command('aadhar', async (ctx) => {
     try {
         const response = await axios.get(`${process.env.API_URL}/search/id/${id}`);
         let data = response.data.results;
-        if (data.length === 0) return await ctx.telegram.editMessageText(ctx.chat.id, msg.message_id, null, "❌ *No records found.*", { parse_mode: 'Markdown' });
+        if (!data || data.length === 0) return await ctx.telegram.editMessageText(ctx.chat.id, msg.message_id, null, "❌ *No records found.*", { parse_mode: 'Markdown' });
         
         await db.useCredit(ctx.from.id);
         await db.logSearch('aadhar');
         
         let resultText = `⚡ *DIGIINTEL REPORT* ⚡\n━━━━━━━━━━━━━━━━━━\n`;
         data.slice(0, 5).forEach(row => {
-            resultText += `👤 *Name:* ${row.name}\n📄 *Aadhar:* ${row.id || row.aadhar}\n🏠 *Address:* ${row.address}\n━━━━━━━━━━━━━━━━━━\n`;
+            resultText += `👤 *Name:* ${row.name}\n📄 *Aadhar:* ${row.id || row.aadhar}\n🏠 *Address:* ${row.address || 'N/A'}\n━━━━━━━━━━━━━━━━━━\n`;
         });
         resultText += `🛡️ @digiintelbot`;
         await ctx.telegram.editMessageText(ctx.chat.id, msg.message_id, null, resultText, { parse_mode: 'Markdown' });
@@ -174,6 +174,8 @@ bot.action('check_join', async (ctx) => {
     if (await isMember(ctx)) ctx.reply("✅ Access Granted! Use /start.");
     else ctx.reply("❌ Please join @digiintel first.");
 });
+
+bot.on('message', (ctx) => { if (ctx.message.text && ctx.message.text.startsWith('/')) ctx.reply("🤔 Unknown Command. Type /help."); });
 
 // --- VERCEL HANDLER ---
 module.exports = async (req, res) => {
