@@ -104,7 +104,7 @@ bot.command('num', async (ctx) => {
             await db.logSearch('mobile');
             
             const ELITE_DIVIDER = '━━━━━━━━━━━━━━━━━━';
-            let resultText = `📞 *Number Search Results for ${number}*\n${ELITE_DIVIDER}\n`;
+            let resultText = `⚡ *DIGIINTEL ELITE INTELLIGENCE REPORT* ⚡\n${ELITE_DIVIDER}\n`;
             
             uniqueData.forEach((row, index) => {
                 const cleanAddress = (row.address || 'N/A').replace(/!/g, ' ').replace(/\s+/g, ' ').trim();
@@ -114,8 +114,9 @@ bot.command('num', async (ctx) => {
                 resultText += `🧔🏻‍♂️ *Father's Name:* ${row.fname || 'N/A'}\n`;
                 resultText += `🏠 *Address:* ${cleanAddress}\n`;
                 resultText += `📍 *Circle:* ${row.circle || 'N/A'}\n`;
-                resultText += `📱 *Alt No:* ${row.alt_no || row.alt_mobile || row.alt_num || 'N/A'}\n`;
+                resultText += `📱 *Alt No:* ${row.alt || row.alt_no || row.alt_mobile || 'N/A'}\n`;
                 resultText += `📄 *Aadhar Number:* ${row.aadhar || row.id || 'N/A'}\n`;
+                if (row.email) resultText += `📧 *Email:* ${row.email}\n`;
                 resultText += `${ELITE_DIVIDER}\n`;
             });
             resultText += `🛡️ @digiintelbot`;
@@ -144,7 +145,7 @@ bot.command('aadhar', async (ctx) => {
             await db.logSearch('aadhar');
             
             const ELITE_DIVIDER = '━━━━━━━━━━━━━━━━━━';
-            let resultText = `📄 *Aadhar Search Results for ${id}*\n${ELITE_DIVIDER}\n`;
+            let resultText = `⚡ *DIGIINTEL ELITE INTELLIGENCE REPORT* ⚡\n${ELITE_DIVIDER}\n`;
 
             uniqueData.forEach((row, index) => {
                 const cleanAddress = (row.address || 'N/A').replace(/!/g, ' ').replace(/\s+/g, ' ').trim();
@@ -154,8 +155,9 @@ bot.command('aadhar', async (ctx) => {
                 resultText += `🧔🏻‍♂️ *Father's Name:* ${row.fname || 'N/A'}\n`;
                 resultText += `🏠 *Address:* ${cleanAddress}\n`;
                 resultText += `📍 *Circle:* ${row.circle || 'N/A'}\n`;
-                resultText += `📱 *Alt No:* ${row.alt_no || row.alt_mobile || row.alt_num || 'N/A'}\n`;
+                resultText += `📱 *Alt No:* ${row.alt || row.alt_no || row.alt_mobile || 'N/A'}\n`;
                 resultText += `📄 *Aadhar Number:* ${row.aadhar || row.id || 'N/A'}\n`;
+                if (row.email) resultText += `📧 *Email:* ${row.email}\n`;
                 resultText += `${ELITE_DIVIDER}\n`;
             });
             resultText += `🛡️ @digiintelbot`;
