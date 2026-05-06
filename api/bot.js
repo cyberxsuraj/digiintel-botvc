@@ -185,25 +185,39 @@ bot.command('vahan', async (ctx) => {
     try {
         const headers = {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-            'Accept': 'application/json',
-            'x-client-id': 'web-client'
+            'Accept': 'application/json'
         };
 
         let data = null;
         let lastError = "";
 
         try {
-            // INSURANCE DEKHO (The most stable source for Vercel)
-            const idRes = await axios.get(`https://www.insurancedekho.com/api/v1/vehicle/get-vehicle-details?regNo=${regNo}`, { headers, timeout: 6000 });
-            data = idRes.data.data;
+            // MIRROR MASTER (High-Speed Direct Gateway)
+            const mirrorRes = await axios.get(`https://vahan.info/v1/vehicle/${regNo}`, { headers, timeout: 8000 });
+            const d = mirrorRes.data;
+            if (d && d.chassis_number) {
+                data = {
+                    ownerName: d.owner_name,
+                    chassisNumber: d.chassis_number,
+                    engineNumber: d.engine_number,
+                    make: d.make,
+                    model: d.model,
+                    fuelType: d.fuel_type,
+                    registrationDate: d.registration_date,
+                    policyExpiryDate: d.insurance_expiry
+                };
+            }
         } catch (e) {
-            lastError = `ID: ${e.response?.status || e.message}`;
+            lastError = `Mirror: ${e.response?.status || e.message}`;
             try {
-                // ACKO BIKE FALLBACK (Since GJ01YL8529 is a bike)
-                const ackoRes = await axios.post('https://www.acko.com/api/v1/tw/vehicle/details', { registrationNumber: regNo }, { headers, timeout: 5000 });
-                data = ackoRes.data.data;
+                // Secondary Backup: InsuranceDekho Elite
+                const idRes = await axios.get(`https://www.insurancedekho.com/api/v1/vehicle/get-vehicle-details?regNo=${regNo}`, {
+                    headers: { ...headers, 'x-client-id': 'web-client' },
+                    timeout: 5000
+                });
+                data = idRes.data.data;
             } catch (e2) {
-                lastError += ` | Acko: ${e2.response?.status || e2.message}`;
+                lastError += ` | ID: ${e2.response?.status || e2.message}`;
             }
         }
 
