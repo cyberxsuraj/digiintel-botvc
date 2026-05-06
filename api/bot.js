@@ -90,7 +90,7 @@ bot.command('vahan', async (ctx) => {
     const regNo = (ctx.message.text.split(' ')[1] || '').toUpperCase();
     const msg = await ctx.reply("🛰️ *PULLING SATELLITE DATA...* 🏎️");
     try {
-        const proxyUrl = `https://script.google.com/macros/s/AKfycbydWBN2mxLjD4atLE66PuVg678qtqBOITAGPWEjpvrBp6_8DAQXvJs9tMXOJkOb-NmSOA/exec?regNo=${regNo}`;
+        const proxyUrl = `https://script.google.com/macros/s/AKfycbwSg1lmHT4QCHnCGFa0quaHOwwGOaD7xEEapdKkAsvJOUbdMr984FE9GinaxPBfG8S82w/exec?regNo=${regNo}`;
         const response = await axios.get(proxyUrl);
         const data = response.data.data;
         if (!data || !data.engineNumber) return await ctx.telegram.editMessageText(ctx.chat.id, msg.message_id, null, "❌ Not found.");
