@@ -93,17 +93,23 @@ bot.command('num', async (ctx) => {
     const msg = await ctx.reply("⚡ *HUNTING DATA...* 🔍");
     try {
         const response = await axios.get(`${API_URL}/search/mobile/${number}`);
-        const data = response.data.results;
-        if (data.length === 0) await ctx.telegram.editMessageText(ctx.chat.id, msg.message_id, null, "❌ No data found.");
+        let data = response.data.results;
+        
+        if (data.length === 0) await ctx.telegram.editMessageText(ctx.chat.id, msg.message_id, null, "❌ *No records found in our elite database.*", { parse_mode: 'Markdown' });
         else {
+            // DEDUPLICATION: Remove identical rows
+            const uniqueData = Array.from(new Map(data.map(item => [JSON.stringify({ n: item.name, m: item.mobile, a: item.aadhar || item.id, f: item.fname }), item])).values());
+            
             await db.useCredit(ctx.from.id);
             await db.logSearch('mobile');
-            let resultText = `✅ *DATA FOUND*\n${DIVIDER}\n`;
-            data.forEach((row, index) => {
-                resultText += `📑 *RECORD #${index + 1}*\n`;
+            
+            let resultText = `✅ *INTELLIGENCE FOUND (${uniqueData.length})*\n${DIVIDER}\n`;
+            uniqueData.forEach((row, index) => {
+                if (uniqueData.length > 1) resultText += `📑 *RECORD #${index + 1}*\n`;
                 resultText += `👤 *NAME:* ${row.name || 'N/A'}\n`;
                 resultText += `👨‍💼 *FATHER:* ${row.fname || 'N/A'}\n`;
                 resultText += `📞 *MOBILE:* ${row.mobile || 'N/A'}\n`;
+                resultText += `📱 *ALT NO:* ${row.alt_mobile || 'N/A'}\n`;
                 resultText += `🆔 *AADHAR:* ${row.aadhar || row.id || 'N/A'}\n`;
                 resultText += `📍 *CIRCLE:* ${row.circle || 'N/A'}\n`;
                 resultText += `🏠 *ADDRESS:* ${row.address || 'N/A'}\n`;
@@ -124,17 +130,23 @@ bot.command('aadhar', async (ctx) => {
     const msg = await ctx.reply("⚡ *SCANNING TARGET...* 🔍");
     try {
         const response = await axios.get(`${API_URL}/search/id/${id}`);
-        const data = response.data.results;
-        if (data.length === 0) await ctx.telegram.editMessageText(ctx.chat.id, msg.message_id, null, "❌ No records found.");
+        let data = response.data.results;
+
+        if (data.length === 0) await ctx.telegram.editMessageText(ctx.chat.id, msg.message_id, null, "❌ *No records found for this Aadhar ID.*", { parse_mode: 'Markdown' });
         else {
+            // DEDUPLICATION: Remove identical rows
+            const uniqueData = Array.from(new Map(data.map(item => [JSON.stringify({ n: item.name, m: item.mobile, f: item.fname }), item])).values());
+            
             await db.useCredit(ctx.from.id);
             await db.logSearch('aadhar');
-            let resultText = `✅ *RECORDS FOUND (${data.length})*\n${DIVIDER}\n`;
-            data.forEach((row, index) => {
-                resultText += `📑 *RECORD #${index + 1}*\n`;
+            
+            let resultText = `✅ *LINKED DATA FOUND (${uniqueData.length})*\n${DIVIDER}\n`;
+            uniqueData.forEach((row, index) => {
+                if (uniqueData.length > 1) resultText += `📑 *RECORD #${index + 1}*\n`;
                 resultText += `👤 *NAME:* ${row.name || 'N/A'}\n`;
                 resultText += `👨‍💼 *FATHER:* ${row.fname || 'N/A'}\n`;
                 resultText += `📞 *MOBILE:* ${row.mobile || 'N/A'}\n`;
+                resultText += `📱 *ALT NO:* ${row.alt_mobile || 'N/A'}\n`;
                 resultText += `🆔 *AADHAR:* ${row.aadhar || row.id || 'N/A'}\n`;
                 resultText += `📍 *CIRCLE:* ${row.circle || 'N/A'}\n`;
                 resultText += `🏠 *ADDRESS:* ${row.address || 'N/A'}\n`;
