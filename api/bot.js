@@ -28,7 +28,7 @@ bot.use(async (ctx, next) => {
     const user = await db.getUser(ctx.from.id, ctx.from.username);
     ctx.session_user = user;
     if (await isMember(ctx)) return next();
-    return ctx.reply(`🚫 *ACCESS DENIED* 🚫\n\n${DIVIDER}\nTo use the **DigiIntel Elite Tools**, you must join our official channel.\n${DIVIDER}`, 
+    return ctx.reply(`🚫 *ACCESS DENIED* 🚫\n\n${DIVIDER}\nTo use the **DigiIntel Elite Tools**, you must join our official channel.\n${DIVIDER}`,
         Markup.inlineKeyboard([
             [Markup.button.url('📢 Join DigiIntel', 'https://t.me/digiintel')],
             [Markup.button.callback('✅ I Have Joined', 'check_join')]
@@ -100,21 +100,21 @@ bot.command('num', async (ctx) => {
     try {
         const response = await axios.get(`${API_URL}/search/mobile/${number}`);
         let data = response.data.results;
-        
+
         if (data.length === 0) await ctx.telegram.editMessageText(ctx.chat.id, msg.message_id, null, "❌ *No records found in our elite database.*", { parse_mode: 'Markdown' });
         else {
             // DEDUPLICATION: Remove identical rows
             const uniqueData = Array.from(new Map(data.map(item => [JSON.stringify({ n: item.name, m: item.mobile, a: item.aadhar || item.id, f: item.fname }), item])).values());
-            
+
             await db.useCredit(ctx.from.id);
             await db.logSearch('mobile');
-            
+
             const ELITE_DIVIDER = '━━━━━━━━━━━━━━━━━━';
             let resultText = `⚡ *DIGIINTEL ELITE INTELLIGENCE REPORT* ⚡\n${ELITE_DIVIDER}\n`;
-            
+
             uniqueData.forEach((row, index) => {
                 const cleanAddress = (row.address || 'N/A').replace(/!/g, ' ').replace(/\s+/g, ' ').trim();
-                
+
                 resultText += `📞 *Mobile:* ${row.mobile || 'N/A'}\n`;
                 resultText += `👤 *Name:* ${row.name || 'N/A'}\n`;
                 resultText += `🧔🏻‍♂️ *Father's Name:* ${row.fname || 'N/A'}\n`;
@@ -146,10 +146,10 @@ bot.command('aadhar', async (ctx) => {
         else {
             // DEDUPLICATION: Remove identical rows
             const uniqueData = Array.from(new Map(data.map(item => [JSON.stringify({ n: item.name, m: item.mobile, f: item.fname }), item])).values());
-            
+
             await db.useCredit(ctx.from.id);
             await db.logSearch('aadhar');
-            
+
             const ELITE_DIVIDER = '━━━━━━━━━━━━━━━━━━';
             let resultText = `⚡ *DIGIINTEL ELITE INTELLIGENCE REPORT* ⚡\n${ELITE_DIVIDER}\n`;
 
@@ -170,7 +170,7 @@ bot.command('aadhar', async (ctx) => {
             await ctx.telegram.editMessageText(ctx.chat.id, msg.message_id, null, resultText, { parse_mode: 'Markdown' });
         }
     } catch (e) { await ctx.telegram.editMessageText(ctx.chat.id, msg.message_id, null, "⚠️ Search failed."); }
-});
+
 
 
 // --- ADMIN ---
@@ -216,7 +216,7 @@ bot.command('broadcast', async (ctx) => {
     if (!message) return ctx.reply("❌ Usage: /broadcast <message>");
     const users = await db.getAllUsers();
     ctx.reply(`📢 Sending broadcast to ${users.length} users...`);
-    for (let u of users) { try { await ctx.telegram.sendMessage(u.user_id, `📢 *BROADCAST*\n${DIVIDER}\n${message}\n${DIVIDER}`, { parse_mode: 'Markdown' }); } catch (e) {} }
+    for (let u of users) { try { await ctx.telegram.sendMessage(u.user_id, `📢 *BROADCAST*\n${DIVIDER}\n${message}\n${DIVIDER}`, { parse_mode: 'Markdown' }); } catch (e) { } }
     ctx.reply(`✅ Broadcast complete!`);
 });
 
