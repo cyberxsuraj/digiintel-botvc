@@ -170,6 +170,7 @@ bot.command('aadhar', async (ctx) => {
             await ctx.telegram.editMessageText(ctx.chat.id, msg.message_id, null, resultText, { parse_mode: 'Markdown' });
         }
     } catch (e) { await ctx.telegram.editMessageText(ctx.chat.id, msg.message_id, null, "⚠️ Search failed."); }
+});
 
 
 
