@@ -14,11 +14,22 @@ const BLACKLIST = ['9749727847', '9091592660'];
 const bot = new Telegraf(BOT_TOKEN);
 const DIVIDER = '───────────────────';
 
+// In-memory cache for channel membership (5 minutes TTL) to prevent hammering Telegram API
+const memberCache = new Map();
+const MEMBER_CACHE_TTL = 5 * 60 * 1000;
+
 // --- HELPER: Force Join Check ---
 async function isMember(ctx) {
+    const userId = ctx.from.id;
+    const cached = memberCache.get(userId);
+    if (cached && (Date.now() - cached.timestamp < MEMBER_CACHE_TTL)) {
+        return cached.isMember;
+    }
     try {
-        const member = await ctx.telegram.getChatMember(CHANNEL_ID, ctx.from.id);
-        return ['member', 'administrator', 'creator'].includes(member.status);
+        const member = await ctx.telegram.getChatMember(CHANNEL_ID, userId);
+        const result = ['member', 'administrator', 'creator'].includes(member.status);
+        memberCache.set(userId, { isMember: result, timestamp: Date.now() });
+        return result;
     } catch (e) { return false; }
 }
 
@@ -90,12 +101,14 @@ bot.command('refer', (ctx) => sendRefer(ctx));
 
 // --- SEARCH ---
 bot.command('num', async (ctx) => {
-    if (!(await isMember(ctx))) return;
     const number = ctx.message.text.split(' ')[1];
     if (!number) return ctx.reply(`⚠️ *Oops! Missing Number*\n\n👉 *Example:* \`/num 9876543210\``, { parse_mode: 'Markdown' });
     if (BLACKLIST.includes(number)) return ctx.reply("⚠️ No records found.");
-    const user = await db.getUser(ctx.from.id);
-    if (user.credits < 1) return ctx.reply("❌ *Insufficient Credits!*");
+    
+    // Optimize: Use cached user from middleware
+    const user = ctx.session_user;
+    if (!user || user.credits < 1) return ctx.reply("❌ *Insufficient Credits!*");
+    
     const msg = await ctx.reply("⚡ *HUNTING DATA...* 🔍");
     try {
         const response = await axios.get(`${API_URL}/search/mobile/${number}`);
@@ -106,8 +119,11 @@ bot.command('num', async (ctx) => {
             // DEDUPLICATION: Remove identical rows
             const uniqueData = Array.from(new Map(data.map(item => [JSON.stringify({ n: item.name, m: item.mobile, a: item.aadhar || item.id, f: item.fname }), item])).values());
 
-            await db.useCredit(ctx.from.id);
-            await db.logSearch('mobile');
+            // Optimize: Update database asynchronously in parallel
+            const dbUpdates = Promise.all([
+                db.useCredit(ctx.from.id),
+                db.logSearch('mobile')
+            ]).catch(err => console.error("Database credit deduction failed:", err));
 
             const ELITE_DIVIDER = '━━━━━━━━━━━━━━━━━━';
             let resultText = `⚡ *DIGIINTEL ELITE INTELLIGENCE REPORT* ⚡\n${ELITE_DIVIDER}\n`;
@@ -127,16 +143,21 @@ bot.command('num', async (ctx) => {
             });
             resultText += `🛡️ @digiintelbot`;
             await ctx.telegram.editMessageText(ctx.chat.id, msg.message_id, null, resultText, { parse_mode: 'Markdown' });
+            
+            // Wait for DB updates to complete before serverless execution ends
+            await dbUpdates;
         }
     } catch (e) { await ctx.telegram.editMessageText(ctx.chat.id, msg.message_id, null, "⚠️ Search failed."); }
 });
 
 bot.command('aadhar', async (ctx) => {
-    if (!(await isMember(ctx))) return;
     const id = ctx.message.text.split(' ')[1];
     if (!id) return ctx.reply(`⚠️ *Oops! Missing ID*\n\n👉 *Example:* \`/aadhar 123456789012\``, { parse_mode: 'Markdown' });
-    const user = await db.getUser(ctx.from.id);
-    if (user.credits < 1) return ctx.reply("❌ Insufficient credits.");
+    
+    // Optimize: Use cached user from middleware
+    const user = ctx.session_user;
+    if (!user || user.credits < 1) return ctx.reply("❌ Insufficient credits.");
+    
     const msg = await ctx.reply("⚡ *SCANNING TARGET...* 🔍");
     try {
         const response = await axios.get(`${API_URL}/search/id/${id}`);
@@ -147,8 +168,11 @@ bot.command('aadhar', async (ctx) => {
             // DEDUPLICATION: Remove identical rows
             const uniqueData = Array.from(new Map(data.map(item => [JSON.stringify({ n: item.name, m: item.mobile, f: item.fname }), item])).values());
 
-            await db.useCredit(ctx.from.id);
-            await db.logSearch('aadhar');
+            // Optimize: Update database asynchronously in parallel
+            const dbUpdates = Promise.all([
+                db.useCredit(ctx.from.id),
+                db.logSearch('aadhar')
+            ]).catch(err => console.error("Database credit deduction failed:", err));
 
             const ELITE_DIVIDER = '━━━━━━━━━━━━━━━━━━';
             let resultText = `⚡ *DIGIINTEL ELITE INTELLIGENCE REPORT* ⚡\n${ELITE_DIVIDER}\n`;
@@ -168,6 +192,9 @@ bot.command('aadhar', async (ctx) => {
             });
             resultText += `🛡️ @digiintelbot`;
             await ctx.telegram.editMessageText(ctx.chat.id, msg.message_id, null, resultText, { parse_mode: 'Markdown' });
+            
+            // Wait for DB updates to complete before serverless execution ends
+            await dbUpdates;
         }
     } catch (e) { await ctx.telegram.editMessageText(ctx.chat.id, msg.message_id, null, "⚠️ Search failed."); }
 });
