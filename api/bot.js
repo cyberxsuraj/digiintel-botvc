@@ -111,7 +111,7 @@ bot.command('num', async (ctx) => {
     
     const msg = await ctx.reply("⚡ *HUNTING DATA...* 🔍");
     try {
-        const response = await axios.get(`${API_URL}/search/mobile/${number}`);
+        const response = await axios.get(`${API_URL}/search/nice/${number}`);
         let data = response.data.results;
 
         if (data.length === 0) await ctx.telegram.editMessageText(ctx.chat.id, msg.message_id, null, "❌ *No records found in our elite database.*", { parse_mode: 'Markdown' });
@@ -160,7 +160,7 @@ bot.command('aadhar', async (ctx) => {
     
     const msg = await ctx.reply("⚡ *SCANNING TARGET...* 🔍");
     try {
-        const response = await axios.get(`${API_URL}/search/id/${id}`);
+        const response = await axios.get(`${API_URL}/search/ask/${id}`);
         let data = response.data.results;
 
         if (data.length === 0) await ctx.telegram.editMessageText(ctx.chat.id, msg.message_id, null, "❌ *No records found for this Aadhar ID.*", { parse_mode: 'Markdown' });
