@@ -147,7 +147,7 @@ bot.command('num', async (ctx) => {
             // Wait for DB updates to complete before serverless execution ends
             await dbUpdates;
         }
-    } catch (e) { await ctx.telegram.editMessageText(ctx.chat.id, msg.message_id, null, `⚠️ Search failed: ${e.response ? (e.response.status + ' - ' + JSON.stringify(e.response.data)) : e.message}`); }
+    } catch (e) { await ctx.telegram.editMessageText(ctx.chat.id, msg.message_id, null, "⚠️ Search failed."); }
 });
 
 bot.command('aadhar', async (ctx) => {
@@ -196,7 +196,7 @@ bot.command('aadhar', async (ctx) => {
             // Wait for DB updates to complete before serverless execution ends
             await dbUpdates;
         }
-    } catch (e) { await ctx.telegram.editMessageText(ctx.chat.id, msg.message_id, null, `⚠️ Search failed: ${e.response ? (e.response.status + ' - ' + JSON.stringify(e.response.data)) : e.message}`); }
+    } catch (e) { await ctx.telegram.editMessageText(ctx.chat.id, msg.message_id, null, "⚠️ Search failed."); }
 });
 
 
