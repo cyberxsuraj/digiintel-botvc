@@ -19,18 +19,27 @@ const memberCache = new Map();
 const MEMBER_CACHE_TTL = 5 * 60 * 1000;
 
 // --- HELPER: Force Join Check ---
-async function isMember(ctx) {
+async function isMember(ctx, forceCheck = false) {
     const userId = ctx.from.id;
+    if (forceCheck) memberCache.delete(userId);
+
     const cached = memberCache.get(userId);
-    if (cached && (Date.now() - cached.timestamp < MEMBER_CACHE_TTL)) {
-        return cached.isMember;
+    if (!forceCheck && cached && cached.isMember && (Date.now() - cached.timestamp < MEMBER_CACHE_TTL)) {
+        return true;
     }
     try {
         const member = await ctx.telegram.getChatMember(CHANNEL_ID, userId);
         const result = ['member', 'administrator', 'creator'].includes(member.status);
-        memberCache.set(userId, { isMember: result, timestamp: Date.now() });
+        if (result) {
+            memberCache.set(userId, { isMember: true, timestamp: Date.now() });
+        } else {
+            memberCache.delete(userId); // NEVER cache false!
+        }
         return result;
-    } catch (e) { return false; }
+    } catch (e) {
+        memberCache.delete(userId);
+        return false;
+    }
 }
 
 // --- MIDDLEWARE ---
@@ -263,7 +272,7 @@ bot.command('broadcast', async (ctx) => {
 });
 
 bot.action('check_join', async (ctx) => {
-    if (await isMember(ctx)) ctx.reply("✅ Access Granted! Use /start to begin.");
+    if (await isMember(ctx, true)) ctx.reply("✅ Access Granted! Use /start to begin.");
     else ctx.reply("❌ Please join @digiintel first.");
 });
 
