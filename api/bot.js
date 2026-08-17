@@ -111,13 +111,17 @@ bot.command('num', async (ctx) => {
     
     const msg = await ctx.reply("⚡ *HUNTING DATA...* 🔍");
     try {
-        const response = await axios.get(`${API_URL}/search/nice/${number}`);
-        let data = response.data.results;
+        const response = await axios.get(`${API_URL}/search/nice/${number}`, { timeout: 14000 });
+        let data = (response.data && response.data.results) ? response.data.results : [];
 
-        if (data.length === 0) await ctx.telegram.editMessageText(ctx.chat.id, msg.message_id, null, "❌ *No records found in our elite database.*", { parse_mode: 'Markdown' });
-        else {
-            // DEDUPLICATION: Remove identical rows
-            const uniqueData = Array.from(new Map(data.map(item => [JSON.stringify({ n: item.name, m: item.mobile, a: item.aadhar || item.id, f: item.fname }), item])).values());
+        if (!Array.isArray(data) || data.length === 0) {
+            await ctx.telegram.editMessageText(ctx.chat.id, msg.message_id, null, "❌ *No records found in our elite database.*", { parse_mode: 'Markdown' });
+        } else {
+            // DEDUPLICATION: Remove identical rows safely
+            const uniqueData = Array.from(new Map(data.filter(Boolean).map(item => [
+                JSON.stringify({ n: item.name || '', m: item.mobile || '', a: item.aadhar || item.id || '', f: item.fname || '' }), 
+                item
+            ])).values());
 
             // Optimize: Update database asynchronously in parallel
             const dbUpdates = Promise.all([
@@ -128,7 +132,7 @@ bot.command('num', async (ctx) => {
             const ELITE_DIVIDER = '━━━━━━━━━━━━━━━━━━';
             let resultText = `⚡ *DIGIINTEL ELITE INTELLIGENCE REPORT* ⚡\n${ELITE_DIVIDER}\n`;
 
-            uniqueData.forEach((row, index) => {
+            uniqueData.forEach((row) => {
                 const cleanAddress = (row.address || 'N/A').replace(/!/g, ' ').replace(/\s+/g, ' ').trim();
 
                 resultText += `📞 *Mobile:* ${row.mobile || 'N/A'}\n`;
@@ -147,7 +151,10 @@ bot.command('num', async (ctx) => {
             // Wait for DB updates to complete before serverless execution ends
             await dbUpdates;
         }
-    } catch (e) { await ctx.telegram.editMessageText(ctx.chat.id, msg.message_id, null, "⚠️ Search failed."); }
+    } catch (e) { 
+        console.error("Bot /num search error:", e.message);
+        await ctx.telegram.editMessageText(ctx.chat.id, msg.message_id, null, "⚠️ Search failed."); 
+    }
 });
 
 bot.command('aadhar', async (ctx) => {
@@ -160,13 +167,17 @@ bot.command('aadhar', async (ctx) => {
     
     const msg = await ctx.reply("⚡ *SCANNING TARGET...* 🔍");
     try {
-        const response = await axios.get(`${API_URL}/search/ask/${id}`);
-        let data = response.data.results;
+        const response = await axios.get(`${API_URL}/search/ask/${id}`, { timeout: 14000 });
+        let data = (response.data && response.data.results) ? response.data.results : [];
 
-        if (data.length === 0) await ctx.telegram.editMessageText(ctx.chat.id, msg.message_id, null, "❌ *No records found for this Aadhar ID.*", { parse_mode: 'Markdown' });
-        else {
-            // DEDUPLICATION: Remove identical rows
-            const uniqueData = Array.from(new Map(data.map(item => [JSON.stringify({ n: item.name, m: item.mobile, f: item.fname }), item])).values());
+        if (!Array.isArray(data) || data.length === 0) {
+            await ctx.telegram.editMessageText(ctx.chat.id, msg.message_id, null, "❌ *No records found for this Aadhar ID.*", { parse_mode: 'Markdown' });
+        } else {
+            // DEDUPLICATION: Remove identical rows safely
+            const uniqueData = Array.from(new Map(data.filter(Boolean).map(item => [
+                JSON.stringify({ n: item.name || '', m: item.mobile || '', f: item.fname || '' }), 
+                item
+            ])).values());
 
             // Optimize: Update database asynchronously in parallel
             const dbUpdates = Promise.all([
@@ -177,7 +188,7 @@ bot.command('aadhar', async (ctx) => {
             const ELITE_DIVIDER = '━━━━━━━━━━━━━━━━━━';
             let resultText = `⚡ *DIGIINTEL ELITE INTELLIGENCE REPORT* ⚡\n${ELITE_DIVIDER}\n`;
 
-            uniqueData.forEach((row, index) => {
+            uniqueData.forEach((row) => {
                 const cleanAddress = (row.address || 'N/A').replace(/!/g, ' ').replace(/\s+/g, ' ').trim();
 
                 resultText += `📞 *Mobile:* ${row.mobile || 'N/A'}\n`;
@@ -196,7 +207,10 @@ bot.command('aadhar', async (ctx) => {
             // Wait for DB updates to complete before serverless execution ends
             await dbUpdates;
         }
-    } catch (e) { await ctx.telegram.editMessageText(ctx.chat.id, msg.message_id, null, "⚠️ Search failed."); }
+    } catch (e) { 
+        console.error("Bot /aadhar search error:", e.message);
+        await ctx.telegram.editMessageText(ctx.chat.id, msg.message_id, null, "⚠️ Search failed."); 
+    }
 });
 
 
