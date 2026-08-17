@@ -120,7 +120,7 @@ bot.command('num', async (ctx) => {
     
     const msg = await ctx.reply("⚡ *HUNTING DATA...* 🔍");
     try {
-        const response = await axios.get(`${API_URL}/search/nice/${number}`, { timeout: 14000 });
+        const response = await axios.get(`${API_URL}/search/nice/${number}`, { timeout: 25000 });
         let data = (response.data && response.data.results) ? response.data.results : [];
 
         if (!Array.isArray(data) || data.length === 0) {
@@ -176,7 +176,7 @@ bot.command('aadhar', async (ctx) => {
     
     const msg = await ctx.reply("⚡ *SCANNING TARGET...* 🔍");
     try {
-        const response = await axios.get(`${API_URL}/search/ask/${id}`, { timeout: 14000 });
+        const response = await axios.get(`${API_URL}/search/ask/${id}`, { timeout: 25000 });
         let data = (response.data && response.data.results) ? response.data.results : [];
 
         if (!Array.isArray(data) || data.length === 0) {
