@@ -59,7 +59,7 @@ bot.use(async (ctx, next) => {
 // --- UI DESIGNS ---
 const getMainMenu = (ctx) => {
     return {
-        text: `🚀 *WELCOME TO DIGIINTEL OSINT* 🚀\n\n💀 *Elite Intelligence • Real Data • Zero Limits* 💀\n${DIVIDER}\n👁️ Welcome to *DigiIntel* — your gateway to powerful intelligence tools.\n🕵️‍♂️ Data isn't searched here... it's *hunted* ⚡\n${DIVIDER}\n⚡ *CORE FEATURES*\n🔎 Deep Search & Data Lookup\n📱 Mobile & Aadhar Tracking\n📊 Intelligence Gathering\n🧠 Smart Automation\n${DIVIDER}\n👤 *OWNER:* @${ADMIN_USERNAME}\n🔥 _Power is nothing without control. Use it wisely._ 🔥`,
+        text: `🚀 *WELCOME TO DIGIINTEL OSINT* 🚀\n\n💀 *Elite Intelligence • Real Data • Zero Limits* 💀\n${DIVIDER}\n👁️ Welcome to *DigiIntel* — your gateway to powerful intelligence tools.\n🕵️‍♂️ Data isn't searched here... it's *hunted* ⚡\n${DIVIDER}\n⚡ *CORE FEATURES*\n🔎 Deep Search & Data Lookup\n📱 Mobile & Aadhar Tracking\n📧 Email to Details & Mobile Lookup\n🏦 Bank & IFSC Verification\n📊 Intelligence Gathering\n🧠 Smart Automation\n${DIVIDER}\n👤 *OWNER:* @${ADMIN_USERNAME}\n🔥 _Power is nothing without control. Use it wisely._ 🔥`,
         extra: Markup.inlineKeyboard([
             [Markup.button.callback('📖 Help', 'help'), Markup.button.callback('💰 Balance', 'credits')],
             [Markup.button.callback('💎 Buy Credits', 'buy_credits'), Markup.button.callback('🔗 Invite & Earn', 'refer')],
@@ -80,7 +80,7 @@ bot.start(async (ctx) => {
 });
 
 const sendHelp = (ctx) => {
-    return ctx.reply(`📚 *AVAILABLE COMMANDS*\n\n${DIVIDER}\n🔎 */num <number>* — Search Mobile (1💳)\n🆔 */aadhar <id>* — Search Aadhar (1💳)\n🏦 */ifsc <code>* — Bank Details (FREE)\n💰 */credits* — Check Balance\n🔗 */refer* — Earn Credits\n${DIVIDER}\n👉 Contact @${ADMIN_USERNAME} for bulk access.`, { parse_mode: 'Markdown' });
+    return ctx.reply(`📚 *AVAILABLE COMMANDS*\n\n${DIVIDER}\n🔎 */num <number>* — Search Mobile (1💳)\n🆔 */aadhar <id>* — Search Aadhar (1💳)\n📧 */email <address>* — Search Email (1💳)\n🏦 */ifsc <code>* — Bank Details (FREE)\n💰 */credits* — Check Balance\n🔗 */refer* — Earn Credits\n${DIVIDER}\n👉 Contact @${ADMIN_USERNAME} for bulk access.`, { parse_mode: 'Markdown' });
 };
 bot.action('help', (ctx) => sendHelp(ctx));
 bot.command('help', (ctx) => sendHelp(ctx));
@@ -94,6 +94,10 @@ bot.command('credits', (ctx) => sendCredits(ctx));
 
 bot.action('buy_credits', (ctx) => {
     ctx.reply(`💎 *ELITE CREDIT PACKS*\n\n${DIVIDER}\n⭐ *Min Purchase:* 100 Credits\n💰 *Status:* Best Value\n${DIVIDER}\n👉 Contact @${ADMIN_USERNAME} to buy instantly.`, { parse_mode: 'Markdown' });
+});
+
+bot.action('email_info', (ctx) => {
+    ctx.reply(`📧 *EMAIL TO DETAILS SEARCH*\n\n${DIVIDER}\nTo uncover mobile numbers and identities from an email, use:\n\n👉 \`/email target@gmail.com\`\n\n(Costs *1 Credit* per found record)\n${DIVIDER}`, { parse_mode: 'Markdown' });
 });
 
 bot.action('ifsc_info', (ctx) => {
@@ -233,9 +237,69 @@ bot.command('aadhar', async (ctx) => {
     }
 });
 
+bot.command('email', async (ctx) => {
+    const rawInput = ctx.message.text.split(' ')[1] || '';
+    const email = rawInput.trim().toLowerCase();
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!email || !emailRegex.test(email)) {
+        return ctx.reply(`⚠️ *Please provide a valid email address.*\n\n👉 *Example:* \`/email target@gmail.com\``, { parse_mode: 'Markdown' });
+    }
 
+    const user = ctx.session_user;
+    if (!user || user.credits < 1) return ctx.reply("❌ *Insufficient Credits!* Contact admin to purchase credits.");
 
-// --- ADMIN ---
+    const msg = await ctx.reply("⚡ *Hunting intelligence records by email... Please wait.* 🔍");
+    try {
+        const cleanApiUrl = (API_URL || '').replace(/\/+$/, '');
+        const response = await axios.get(`${cleanApiUrl}/search/email/${encodeURIComponent(email)}`, { timeout: 25000 });
+        let data = (response.data && response.data.results) ? response.data.results : [];
+
+        if (!Array.isArray(data) || data.length === 0) {
+            await ctx.telegram.editMessageText(ctx.chat.id, msg.message_id, null, "❌ *No records found for this email address.*", { parse_mode: 'Markdown' });
+        } else {
+            // Deduplication: Remove identical rows safely
+            const uniqueData = Array.from(new Map(data.filter(Boolean).map(item => [
+                JSON.stringify({ n: item.name || '', m: item.mobile || '', a: item.aadhar || item.id || '', f: item.fname || '' }), 
+                item
+            ])).values());
+
+            const dbUpdates = Promise.all([
+                db.useCredit(ctx.from.id),
+                db.logSearch('email')
+            ]).catch(err => console.error("Database credit deduction failed:", err));
+
+            const ELITE_DIVIDER = '━━━━━━━━━━━━━━━━━━';
+            let resultText = `⚡ *DIGIINTEL INTELLIGENCE REPORT* ⚡\n${ELITE_DIVIDER}\n`;
+
+            uniqueData.forEach((row) => {
+                const cleanAddress = (row.address || 'N/A').replace(/!/g, ' ').replace(/\s+/g, ' ').trim();
+
+                if (row.email) resultText += `📧 *Email:* ${row.email}\n`;
+                resultText += `📞 *Mobile:* ${row.mobile || 'N/A'}\n`;
+                resultText += `👤 *Name:* ${row.name || 'N/A'}\n`;
+                resultText += `🧔🏻‍♂️ *Father's Name:* ${row.fname || 'N/A'}\n`;
+                resultText += `🏠 *Address:* ${cleanAddress}\n`;
+                resultText += `📍 *Circle:* ${row.circle || 'N/A'}\n`;
+                resultText += `📱 *Alt No:* ${row.alt || row.alt_no || row.alt_mobile || 'N/A'}\n`;
+                resultText += `📄 *Aadhar Number:* ${row.aadhar || row.id || 'N/A'}\n`;
+                resultText += `${ELITE_DIVIDER}\n`;
+            });
+            resultText += `🛡️ @digiintelbot`;
+            await ctx.telegram.editMessageText(ctx.chat.id, msg.message_id, null, resultText, { parse_mode: 'Markdown' });
+
+            await dbUpdates;
+        }
+    } catch (e) {
+        console.error("Bot /email search error:", e.message);
+        let errorMsg = "⚠️ Service is momentarily busy. Please try your search again in a moment.";
+        if (e.code === 'ECONNABORTED' || (e.message && e.message.includes('timeout'))) {
+            errorMsg = "⏱️ Database scan took longer than expected. Please retry in a few moments.";
+        }
+        await ctx.telegram.editMessageText(ctx.chat.id, msg.message_id, null, errorMsg);
+    }
+});
+
+// --- SERVICES & ADMIN ---
 bot.command('ifsc', async (ctx) => {
     const code = ctx.message.text.split(' ')[1];
     if (!code) return ctx.reply("⚠️ *Please provide an IFSC code.*\n\n👉 *Example:* `/ifsc SBIN0001234`", { parse_mode: 'Markdown' });
