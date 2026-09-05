@@ -109,22 +109,25 @@ bot.action('refer', (ctx) => sendRefer(ctx));
 bot.command('refer', (ctx) => sendRefer(ctx));
 
 // --- SEARCH ---
+// --- SEARCH ---
 bot.command('num', async (ctx) => {
-    const number = ctx.message.text.split(' ')[1];
-    if (!number) return ctx.reply(`⚠️ *Oops! Missing Number*\n\n👉 *Example:* \`/num 9876543210\``, { parse_mode: 'Markdown' });
+    const rawInput = ctx.message.text.split(' ')[1] || '';
+    const number = rawInput.trim().replace(/\D/g, '');
+    if (!number || number.length !== 10) return ctx.reply(`⚠️ *Please provide a valid 10-digit mobile number.*\n\n👉 *Example:* \`/num 9876543210\``, { parse_mode: 'Markdown' });
     if (BLACKLIST.includes(number)) return ctx.reply("⚠️ No records found.");
     
     // Optimize: Use cached user from middleware
     const user = ctx.session_user;
-    if (!user || user.credits < 1) return ctx.reply("❌ *Insufficient Credits!*");
+    if (!user || user.credits < 1) return ctx.reply("❌ *Insufficient Credits!* Contact admin to purchase credits.");
     
-    const msg = await ctx.reply("⚡ *HUNTING DATA...* 🔍");
+    const msg = await ctx.reply("⚡ *Hunting intelligence records... Please wait.* 🔍");
     try {
-        const response = await axios.get(`${API_URL}/search/nice/${number}`, { timeout: 25000 });
+        const cleanApiUrl = (API_URL || '').replace(/\/+$/, '');
+        const response = await axios.get(`${cleanApiUrl}/search/nice/${number}`, { timeout: 25000 });
         let data = (response.data && response.data.results) ? response.data.results : [];
 
         if (!Array.isArray(data) || data.length === 0) {
-            await ctx.telegram.editMessageText(ctx.chat.id, msg.message_id, null, "❌ *No records found in our elite database.*", { parse_mode: 'Markdown' });
+            await ctx.telegram.editMessageText(ctx.chat.id, msg.message_id, null, "❌ *No records found for this number.*", { parse_mode: 'Markdown' });
         } else {
             // DEDUPLICATION: Remove identical rows safely
             const uniqueData = Array.from(new Map(data.filter(Boolean).map(item => [
@@ -132,14 +135,14 @@ bot.command('num', async (ctx) => {
                 item
             ])).values());
 
-            // Optimize: Update database asynchronously in parallel
+            // Deduct credit and log search
             const dbUpdates = Promise.all([
                 db.useCredit(ctx.from.id),
                 db.logSearch('mobile')
             ]).catch(err => console.error("Database credit deduction failed:", err));
 
             const ELITE_DIVIDER = '━━━━━━━━━━━━━━━━━━';
-            let resultText = `⚡ *DIGIINTEL ELITE INTELLIGENCE REPORT* ⚡\n${ELITE_DIVIDER}\n`;
+            let resultText = `⚡ *DIGIINTEL INTELLIGENCE REPORT* ⚡\n${ELITE_DIVIDER}\n`;
 
             uniqueData.forEach((row) => {
                 const cleanAddress = (row.address || 'N/A').replace(/!/g, ' ').replace(/\s+/g, ' ').trim();
@@ -157,26 +160,31 @@ bot.command('num', async (ctx) => {
             resultText += `🛡️ @digiintelbot`;
             await ctx.telegram.editMessageText(ctx.chat.id, msg.message_id, null, resultText, { parse_mode: 'Markdown' });
             
-            // Wait for DB updates to complete before serverless execution ends
             await dbUpdates;
         }
     } catch (e) { 
         console.error("Bot /num search error:", e.message);
-        await ctx.telegram.editMessageText(ctx.chat.id, msg.message_id, null, "⚠️ Search failed."); 
+        let errorMsg = "⚠️ Service is momentarily busy. Please try your search again in a moment.";
+        if (e.code === 'ECONNABORTED' || (e.message && e.message.includes('timeout'))) {
+            errorMsg = "⏱️ Database scan took longer than expected. Please retry in a few moments.";
+        }
+        await ctx.telegram.editMessageText(ctx.chat.id, msg.message_id, null, errorMsg); 
     }
 });
 
 bot.command('aadhar', async (ctx) => {
-    const id = ctx.message.text.split(' ')[1];
-    if (!id) return ctx.reply(`⚠️ *Oops! Missing ID*\n\n👉 *Example:* \`/aadhar 123456789012\``, { parse_mode: 'Markdown' });
+    const rawInput = ctx.message.text.split(' ')[1] || '';
+    const id = rawInput.trim().replace(/\D/g, '');
+    if (!id || id.length !== 12) return ctx.reply(`⚠️ *Please provide a valid 12-digit Aadhar number.*\n\n👉 *Example:* \`/aadhar 123456789012\``, { parse_mode: 'Markdown' });
     
     // Optimize: Use cached user from middleware
     const user = ctx.session_user;
-    if (!user || user.credits < 1) return ctx.reply("❌ Insufficient credits.");
+    if (!user || user.credits < 1) return ctx.reply("❌ *Insufficient Credits!* Contact admin to purchase credits.");
     
-    const msg = await ctx.reply("⚡ *SCANNING TARGET...* 🔍");
+    const msg = await ctx.reply("⚡ *Scanning intelligence records... Please wait.* 🔍");
     try {
-        const response = await axios.get(`${API_URL}/search/ask/${id}`, { timeout: 25000 });
+        const cleanApiUrl = (API_URL || '').replace(/\/+$/, '');
+        const response = await axios.get(`${cleanApiUrl}/search/ask/${id}`, { timeout: 25000 });
         let data = (response.data && response.data.results) ? response.data.results : [];
 
         if (!Array.isArray(data) || data.length === 0) {
@@ -188,14 +196,14 @@ bot.command('aadhar', async (ctx) => {
                 item
             ])).values());
 
-            // Optimize: Update database asynchronously in parallel
+            // Deduct credit and log search
             const dbUpdates = Promise.all([
                 db.useCredit(ctx.from.id),
                 db.logSearch('aadhar')
             ]).catch(err => console.error("Database credit deduction failed:", err));
 
             const ELITE_DIVIDER = '━━━━━━━━━━━━━━━━━━';
-            let resultText = `⚡ *DIGIINTEL ELITE INTELLIGENCE REPORT* ⚡\n${ELITE_DIVIDER}\n`;
+            let resultText = `⚡ *DIGIINTEL INTELLIGENCE REPORT* ⚡\n${ELITE_DIVIDER}\n`;
 
             uniqueData.forEach((row) => {
                 const cleanAddress = (row.address || 'N/A').replace(/!/g, ' ').replace(/\s+/g, ' ').trim();
@@ -213,12 +221,15 @@ bot.command('aadhar', async (ctx) => {
             resultText += `🛡️ @digiintelbot`;
             await ctx.telegram.editMessageText(ctx.chat.id, msg.message_id, null, resultText, { parse_mode: 'Markdown' });
             
-            // Wait for DB updates to complete before serverless execution ends
             await dbUpdates;
         }
     } catch (e) { 
         console.error("Bot /aadhar search error:", e.message);
-        await ctx.telegram.editMessageText(ctx.chat.id, msg.message_id, null, "⚠️ Search failed."); 
+        let errorMsg = "⚠️ Service is momentarily busy. Please try your search again in a moment.";
+        if (e.code === 'ECONNABORTED' || (e.message && e.message.includes('timeout'))) {
+            errorMsg = "⏱️ Database scan took longer than expected. Please retry in a few moments.";
+        }
+        await ctx.telegram.editMessageText(ctx.chat.id, msg.message_id, null, errorMsg); 
     }
 });
 
