@@ -272,14 +272,73 @@ bot.command('add', async (ctx) => {
     ctx.telegram.sendMessage(args[1], `🎁 *CREDITS RECEIVED!*\n${DIVIDER}\nAdmin has added *${args[2]} Credits* to your account.\n${DIVIDER}`, { parse_mode: 'Markdown' });
 });
 
+function escapeHtml(text) {
+    if (!text) return '';
+    return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
 bot.command('broadcast', async (ctx) => {
-    if (ctx.from.id !== ADMIN_ID) return;
-    const message = ctx.message.text.replace('/broadcast', '').trim();
-    if (!message) return ctx.reply("❌ Usage: /broadcast <message>");
-    const users = await db.getAllUsers();
-    ctx.reply(`📢 Sending broadcast to ${users.length} users...`);
-    for (let u of users) { try { await ctx.telegram.sendMessage(u.user_id, `📢 *BROADCAST*\n${DIVIDER}\n${message}\n${DIVIDER}`, { parse_mode: 'Markdown' }); } catch (e) { } }
-    ctx.reply(`✅ Broadcast complete!`);
+    if (ctx.from.id !== ADMIN_ID) {
+        console.warn(`Unauthorized broadcast attempt by user ID: ${ctx.from.id}`);
+        return;
+    }
+    const message = ctx.message.text.replace(/^\/broadcast(@\w+)?/i, '').trim();
+    if (!message) {
+        return ctx.reply("❌ *Usage:* `/broadcast <message>`\n\n_Supports HTML or plain text._", { parse_mode: 'Markdown' });
+    }
+
+    let users = [];
+    try {
+        users = await db.getAllUsers();
+    } catch (dbErr) {
+        console.error("Broadcast DB error:", dbErr.message);
+        return ctx.reply(`❌ *Database Error:* Could not fetch user list. ${dbErr.message}`, { parse_mode: 'Markdown' });
+    }
+
+    if (!users || users.length === 0) {
+        return ctx.reply("⚠️ *Broadcast Aborted:* 0 users found in database.\n\nMake sure users have registered or /start the bot.", { parse_mode: 'Markdown' });
+    }
+
+    const total = users.length;
+    await ctx.reply(`📢 *Broadcast Started...*\n${DIVIDER}\n👥 Total Recipients: *${total}*\n⚡ Sending in high-speed batches...`, { parse_mode: 'Markdown' });
+
+    let successCount = 0;
+    let failedCount = 0;
+    const BATCH_SIZE = 15;
+    const startTime = Date.now();
+    const MAX_RUN_TIME = 11000; // 11s safe threshold for Vercel 15s limit
+
+    for (let i = 0; i < total; i += BATCH_SIZE) {
+        // If approaching Vercel serverless timeout, yield safely and send status
+        if (Date.now() - startTime > MAX_RUN_TIME) {
+            await ctx.telegram.sendMessage(ctx.chat.id, `⚠️ *Vercel Execution Limit Notice*\n${DIVIDER}\nProcessed: *${i}/${total}*\n✅ Sent: *${successCount}*\n❌ Blocked/Failed: *${failedCount}*\n\n💡 _For large lists, run the dedicated CLI broadcast runner to reach all users without timeouts._`, { parse_mode: 'Markdown' });
+            return;
+        }
+
+        const batch = users.slice(i, i + BATCH_SIZE);
+        await Promise.allSettled(batch.map(async (u) => {
+            const broadcastHtml = `📢 <b>DIGIINTEL ANNOUNCEMENT</b>\n${DIVIDER}\n${escapeHtml(message)}\n${DIVIDER}\n🛡️ @digiintelbot`;
+            try {
+                await ctx.telegram.sendMessage(u.user_id, broadcastHtml, { parse_mode: 'HTML' });
+                successCount++;
+            } catch (err) {
+                // Fallback to plain text if HTML tags caused an error
+                try {
+                    await ctx.telegram.sendMessage(u.user_id, `📢 DIGIINTEL ANNOUNCEMENT\n${DIVIDER}\n${message}\n${DIVIDER}\n@digiintelbot`);
+                    successCount++;
+                } catch (fallbackErr) {
+                    failedCount++;
+                }
+            }
+        }));
+
+        // 120ms pause between batches respects Telegram 30 msg/sec rate limit
+        await sleep(120);
+    }
+
+    await ctx.telegram.sendMessage(ctx.chat.id, `✅ *Broadcast Finished!*\n${DIVIDER}\n👥 Total Targeted: *${total}*\n📬 Successfully Delivered: *${successCount}*\n⚠️ Blocked/Failed: *${failedCount}*\n${DIVIDER}`, { parse_mode: 'Markdown' });
 });
 
 bot.action('check_join', async (ctx) => {
