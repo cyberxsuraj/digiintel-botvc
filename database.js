@@ -26,7 +26,10 @@ const dbOps = {
                     .insert([{ user_id: userId, username: username || 'Unknown', credits: 0, referral_count: 0 }])
                     .select()
                     .single();
-                return newUser;
+                if (insertError) {
+                    console.error("getUser insertError:", insertError.message);
+                }
+                return newUser || { user_id: userId, username: username || 'Unknown', credits: 0, referral_count: 0 };
             }
             return data;
         } catch (err) {
