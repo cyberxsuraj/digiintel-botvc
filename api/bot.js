@@ -127,7 +127,7 @@ bot.command('num', async (ctx) => {
     const msg = await ctx.reply("⚡ *Hunting intelligence records... Please wait.* 🔍");
     try {
         const cleanApiUrl = (API_URL || '').replace(/\/+$/, '');
-        const response = await axios.get(`${cleanApiUrl}/search/nice/${number}`, { timeout: 25000 });
+        const response = await axios.get(`${cleanApiUrl}/search/nice/${number}`, { timeout: 45000 });
         let data = (response.data && response.data.results) ? response.data.results : [];
 
         if (!Array.isArray(data) || data.length === 0) {
@@ -188,7 +188,7 @@ bot.command('aadhar', async (ctx) => {
     const msg = await ctx.reply("⚡ *Scanning intelligence records... Please wait.* 🔍");
     try {
         const cleanApiUrl = (API_URL || '').replace(/\/+$/, '');
-        const response = await axios.get(`${cleanApiUrl}/search/ask/${id}`, { timeout: 25000 });
+        const response = await axios.get(`${cleanApiUrl}/search/ask/${id}`, { timeout: 45000 });
         let data = (response.data && response.data.results) ? response.data.results : [];
 
         if (!Array.isArray(data) || data.length === 0) {
@@ -252,7 +252,7 @@ bot.command(['email', 'mail'], async (ctx) => {
     const msg = await ctx.reply("⚡ *Scanning intelligence records for email... Please wait.* 🔍");
     try {
         const cleanApiUrl = (API_URL || '').replace(/\/+$/, '');
-        const response = await axios.get(`${cleanApiUrl}/search/gm/${encodeURIComponent(email)}`, { timeout: 25000 });
+        const response = await axios.get(`${cleanApiUrl}/search/gm/${encodeURIComponent(email)}`, { timeout: 45000 });
         let data = (response.data && response.data.results) ? response.data.results : [];
 
         if (!Array.isArray(data) || data.length === 0) {
