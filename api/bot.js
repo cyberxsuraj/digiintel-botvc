@@ -80,10 +80,14 @@ bot.start(async (ctx) => {
 });
 
 const sendHelp = (ctx) => {
-    return ctx.reply(`📚 *AVAILABLE COMMANDS*\n\n${DIVIDER}\n🔎 */num <number>* — Search Mobile (1💳)\n🆔 */aadhar <id>* — Search Aadhar (1💳)\n🏦 */ifsc <code>* — Bank Details (FREE)\n💰 */credits* — Check Balance\n🔗 */refer* — Earn Credits\n${DIVIDER}\n👉 Contact @${ADMIN_USERNAME} for bulk access.`, { parse_mode: 'Markdown' });
+    return ctx.reply(`📚 *AVAILABLE COMMANDS*\n\n${DIVIDER}\n🔎 */num <number>* — Search Mobile (1💳)\n🆔 */aadhar <id>* — Search Aadhar (1💳)\n📧 */email <email>* — Search Email (1💳)\n🏦 */ifsc <code>* — Bank Details (FREE)\n💰 */credits* — Check Balance\n🔗 */refer* — Earn Credits\n${DIVIDER}\n👉 Contact @${ADMIN_USERNAME} for bulk access.`, { parse_mode: 'Markdown' });
 };
 bot.action('help', (ctx) => sendHelp(ctx));
 bot.command('help', (ctx) => sendHelp(ctx));
+
+bot.action('email_info', (ctx) => {
+    ctx.reply(`📧 *EMAIL INTELLIGENCE SEARCH*\n\n${DIVIDER}\nTo search for subscriber records linked to an email, use:\n\n👉 \`/email user@example.com\`\n(or \`/mail user@example.com\`)\n\n💳 Cost: *1 Credit per search*\n${DIVIDER}`, { parse_mode: 'Markdown' });
+});
 
 const sendCredits = async (ctx) => {
     const user = await db.getUser(ctx.from.id, ctx.from.username);
@@ -233,6 +237,70 @@ bot.command('aadhar', async (ctx) => {
     }
 });
 
+// EMAIL SEARCH COMMAND (/email or /mail)
+bot.command(['email', 'mail'], async (ctx) => {
+    const rawInput = ctx.message.text.split(' ')[1] || '';
+    const email = rawInput.trim().toLowerCase();
+    const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!email || !EMAIL_REGEX.test(email)) {
+        return ctx.reply(`⚠️ *Please provide a valid email address.*\n\n👉 *Example:* \`/email user@example.com\`\n(or \`/mail user@example.com\`)`, { parse_mode: 'Markdown' });
+    }
+
+    const user = ctx.session_user;
+    if (!user || user.credits < 1) return ctx.reply("❌ *Insufficient Credits!* Contact admin to purchase credits.");
+
+    const msg = await ctx.reply("⚡ *Scanning intelligence records for email... Please wait.* 🔍");
+    try {
+        const cleanApiUrl = (API_URL || '').replace(/\/+$/, '');
+        const response = await axios.get(`${cleanApiUrl}/search/gm/${encodeURIComponent(email)}`, { timeout: 25000 });
+        let data = (response.data && response.data.results) ? response.data.results : [];
+
+        if (!Array.isArray(data) || data.length === 0) {
+            await ctx.telegram.editMessageText(ctx.chat.id, msg.message_id, null, "❌ *No records found for this email address.*", { parse_mode: 'Markdown' });
+        } else {
+            // DEDUPLICATION: Remove identical rows safely
+            const uniqueData = Array.from(new Map(data.filter(Boolean).map(item => [
+                JSON.stringify({ n: item.name || '', m: item.mobile || '', f: item.fname || '' }), 
+                item
+            ])).values());
+
+            // Deduct 1 credit and log search
+            const dbUpdates = Promise.all([
+                db.useCredit(ctx.from.id),
+                db.logSearch('email')
+            ]).catch(err => console.error("Database credit deduction failed:", err));
+
+            const ELITE_DIVIDER = '━━━━━━━━━━━━━━━━━━';
+            let resultText = `⚡ *DIGIINTEL INTELLIGENCE REPORT* ⚡\n${ELITE_DIVIDER}\n`;
+
+            uniqueData.forEach((row) => {
+                const cleanAddress = (row.address || 'N/A').replace(/!/g, ' ').replace(/\s+/g, ' ').trim();
+
+                resultText += `📧 *Email:* ${row.email || email}\n`;
+                resultText += `📞 *Mobile:* ${row.mobile || 'N/A'}\n`;
+                resultText += `👤 *Name:* ${row.name || 'N/A'}\n`;
+                resultText += `🧔🏻‍♂️ *Father's Name:* ${row.fname || 'N/A'}\n`;
+                resultText += `🏠 *Address:* ${cleanAddress}\n`;
+                resultText += `📍 *Circle:* ${row.circle || 'N/A'}\n`;
+                resultText += `📱 *Alt No:* ${row.alt || row.alt_no || row.alt_mobile || 'N/A'}\n`;
+                resultText += `📄 *Aadhar Number:* ${row.aadhar || row.id || 'N/A'}\n`;
+                resultText += `${ELITE_DIVIDER}\n`;
+            });
+            resultText += `🛡️ @digiintelbot`;
+            await ctx.telegram.editMessageText(ctx.chat.id, msg.message_id, null, resultText, { parse_mode: 'Markdown' });
+
+            await dbUpdates;
+        }
+    } catch (e) {
+        console.error("Bot /email search error:", e.message);
+        let errorMsg = "⚠️ Service is momentarily busy. Please try your search again in a moment.";
+        if (e.code === 'ECONNABORTED' || (e.message && e.message.includes('timeout'))) {
+            errorMsg = "⏱️ Database scan took longer than expected. Please retry in a few moments.";
+        }
+        await ctx.telegram.editMessageText(ctx.chat.id, msg.message_id, null, errorMsg);
+    }
+});
+
 
 
 // --- ADMIN ---
@@ -350,11 +418,15 @@ bot.on('message', (ctx) => { if (ctx.message.text && ctx.message.text.startsWith
 
 // --- VERCEL SERVERLESS HANDLER ---
 module.exports = async (req, res) => {
+    if (req.method === 'GET' || !req.body || typeof req.body !== 'object' || !req.body.update_id) {
+        return res.status(200).json({ status: 'ok', service: 'DigiIntel Bot', webhook: 'active' });
+    }
     try {
         await bot.handleUpdate(req.body);
         res.status(200).send('OK');
     } catch (e) {
-        console.error(e);
-        res.status(500).send('Something went wrong');
+        console.error('Webhook processing error:', e);
+        // Always acknowledge Telegram webhook with 200 to prevent infinite retry loops
+        res.status(200).send('OK');
     }
 };
