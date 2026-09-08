@@ -16,9 +16,10 @@ module.exports = async (req, res) => {
         // 2. Setup Menus
         await bot.telegram.setMyCommands([
             { command: 'start', description: '🚀 Start DigiIntel' },
-            { command: 'num', description: '🔎 Search Mobile Number' },
-            { command: 'aadhar', description: '🆔 Search Aadhar ID' },
-            { command: 'ifsc', description: '🏦 Bank/IFSC Search' },
+            { command: 'num', description: '🔎 Search Mobile Number (1💳)' },
+            { command: 'aadhar', description: '🆔 Search Aadhar ID (1💳)' },
+            { command: 'email', description: '📧 Search Email Address (1💳)' },
+            { command: 'ifsc', description: '🏦 Bank/IFSC Search (FREE)' },
             { command: 'refer', description: '🔗 Invite & Earn' },
             { command: 'credits', description: '💰 Check Balance' },
             { command: 'help', description: '📖 View Help & Pricing' }
@@ -26,9 +27,10 @@ module.exports = async (req, res) => {
 
         await bot.telegram.setMyCommands([
             { command: 'start', description: '🚀 Start DigiIntel' },
-            { command: 'num', description: '🔎 Search Mobile Number' },
-            { command: 'aadhar', description: '🆔 Search Aadhar ID' },
-            { command: 'ifsc', description: '🏦 Bank/IFSC Search' },
+            { command: 'num', description: '🔎 Search Mobile Number (1💳)' },
+            { command: 'aadhar', description: '🆔 Search Aadhar ID (1💳)' },
+            { command: 'email', description: '📧 Search Email Address (1💳)' },
+            { command: 'ifsc', description: '🏦 Bank/IFSC Search (FREE)' },
             { command: 'refer', description: '🔗 Invite & Earn' },
             { command: 'credits', description: '💰 Check Balance' },
             { command: 'help', description: '📖 View Help & Pricing' },
