@@ -11,7 +11,9 @@ const ADMIN_ID = 6872301913;
 const ADMIN_USERNAME = 'Ehsuraj';
 const BLACKLIST = ['9749727847', '9091592660'];
 
-const bot = new Telegraf(BOT_TOKEN);
+const bot = new Telegraf(BOT_TOKEN, {
+    telegram: { webhookReply: false }
+});
 const DIVIDER = '───────────────────';
 
 // In-memory cache for channel membership (5 minutes TTL) to prevent hammering Telegram API
