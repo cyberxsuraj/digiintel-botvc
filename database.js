@@ -113,6 +113,64 @@ const dbOps = {
     getAllUsers: async () => {
         const { data } = await supabase.from('users').select('user_id');
         return data || [];
+    },
+
+    // Check if system-wide Free Search Mode (Happy Hours) is currently active
+    checkFreeMode: async () => {
+        try {
+            const { data: cfg } = await supabase
+                .from('api_keys')
+                .select('*')
+                .eq('key', 'system_free_mode_config')
+                .single();
+            if (cfg && cfg.is_active && new Date() < new Date(cfg.expires_at)) {
+                return {
+                    active: true,
+                    expiresAt: cfg.expires_at,
+                    totalSearches: cfg.total_searches || 0
+                };
+            }
+        } catch(e) {}
+        return { active: false, totalSearches: 0 };
+    },
+
+    // Record a free search
+    recordFreeSearch: async () => {
+        try {
+            const { data: f } = await supabase.from('api_keys').select('total_searches').eq('key', 'system_free_mode_config').single();
+            if (f) {
+                await supabase.from('api_keys').update({ 
+                    total_searches: (f.total_searches || 0) + 1,
+                    last_used_at: new Date().toISOString()
+                }).eq('key', 'system_free_mode_config');
+            }
+        } catch(e) {}
+    },
+
+    // Set free mode status (Admin command)
+    setFreeMode: async (enabled, minutes = 0) => {
+        try {
+            const now = new Date();
+            let expiresAt = new Date('2099-12-31T23:59:59.000Z');
+            if (enabled && minutes > 0) {
+                expiresAt = new Date(now.getTime() + minutes * 60 * 1000);
+            } else if (!enabled) {
+                expiresAt = new Date('2000-01-01T00:00:00.000Z');
+            }
+            const { data, error } = await supabase
+                .from('api_keys')
+                .update({
+                    is_active: !!enabled,
+                    expires_at: expiresAt.toISOString(),
+                    client_name: enabled ? `Free Mode Active (${minutes > 0 ? minutes + 'm' : 'Unlimited'})` : 'Free Mode Disabled'
+                })
+                .eq('key', 'system_free_mode_config')
+                .select()
+                .single();
+            return { success: !error, expiresAt: expiresAt.toISOString(), totalSearches: data?.total_searches || 0 };
+        } catch(e) {
+            return { success: false, error: e.message };
+        }
     }
 };
 
