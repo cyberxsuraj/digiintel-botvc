@@ -1,8 +1,8 @@
 const { createClient } = require('@supabase/supabase-js');
 require('dotenv').config();
 
-const SUPABASE_URL = process.env.SUPABASE_URL || 'https://fxxqnuibvtrcvlqjsctc.supabase.co';
-const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ4eHFudWlidnRyY3ZscWpzY3RjIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4MjExNzg4MiwiZXhwIjoyMDk3NjkzODgyfQ.99e2NEKjMjNnS1siCOI4daKNNgb66vwZgXb5SiZQv7c';
+const SUPABASE_URL = (process.env.SUPABASE_URL && process.env.SUPABASE_URL.includes('fxxqnuibvtrcvlqjsctc')) ? process.env.SUPABASE_URL : 'https://fxxqnuibvtrcvlqjsctc.supabase.co';
+const SUPABASE_KEY = (process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ4eHFudWlidnRyY3ZscWpzY3RjIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4MjExNzg4MiwiZXhwIjoyMDk3NjkzODgyfQ.99e2NEKjMjNnS1siCOI4daKNNgb66vwZgXb5SiZQv7c');
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY, {
     auth: {
