@@ -115,23 +115,25 @@ const dbOps = {
         return data || [];
     },
 
-    // Check if system-wide Free Search Mode (Happy Hours) is currently active
+    // Central Free Mode configuration (shared seamlessly across Web & Bot)
     checkFreeMode: async () => {
         try {
-            const { data } = await supabase
-                .from('users')
-                .select('*')
-                .eq('user_id', 'system_free_mode')
-                .maybeSingle();
+            const CENTRAL_URL = 'https://fxxqnuibvtrcvlqjsctc.supabase.co';
+            const CENTRAL_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ4eHFudWlidnRyY3ZscWpzY3RjIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4MjExNzg4MiwiZXhwIjoyMDk3NjkzODgyfQ.99e2NEKjMjNnS1siCOI4daKNNgb66vwZgXb5SiZQv7c';
 
-            if (data && data.username) {
-                try {
-                    const cfg = JSON.parse(data.username);
-                    if (cfg.active && (!cfg.expires_at || new Date() < new Date(cfg.expires_at))) {
-                        return { active: true, expiresAt: cfg.expires_at, totalSearches: data.credits || 0 };
-                    }
-                    return { active: false, totalSearches: data.credits || 0 };
-                } catch(pe) {}
+            const res = await fetch(`${CENTRAL_URL}/rest/v1/api_keys?key=eq.system_free_mode_config&select=*`, {
+                headers: {
+                    'apikey': CENTRAL_KEY,
+                    'Authorization': `Bearer ${CENTRAL_KEY}`
+                }
+            });
+            if (res.ok) {
+                const rows = await res.json();
+                const cfg = rows?.[0];
+                if (cfg && cfg.is_active && new Date() < new Date(cfg.expires_at)) {
+                    return { active: true, expiresAt: cfg.expires_at, totalSearches: cfg.total_searches || 0 };
+                }
+                return { active: false, totalSearches: cfg?.total_searches || 0 };
             }
         } catch(e) {
             console.error("checkFreeMode error:", e.message);
@@ -142,23 +144,32 @@ const dbOps = {
     // Record a free search
     recordFreeSearch: async () => {
         try {
-            const { data } = await supabase
-                .from('users')
-                .select('credits')
-                .eq('user_id', 'system_free_mode')
-                .maybeSingle();
+            const CENTRAL_URL = 'https://fxxqnuibvtrcvlqjsctc.supabase.co';
+            const CENTRAL_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ4eHFudWlidnRyY3ZscWpzY3RjIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4MjExNzg4MiwiZXhwIjoyMDk3NjkzODgyfQ.99e2NEKjMjNnS1siCOI4daKNNgb66vwZgXb5SiZQv7c';
 
-            if (data) {
-                await supabase.from('users').update({ 
-                    credits: (data.credits || 0) + 1 
-                }).eq('user_id', 'system_free_mode');
-            } else {
-                await supabase.from('users').insert([{
-                    user_id: 'system_free_mode',
-                    username: JSON.stringify({ active: true, expires_at: null }),
-                    credits: 1,
-                    referral_count: 0
-                }]);
+            const res = await fetch(`${CENTRAL_URL}/rest/v1/api_keys?key=eq.system_free_mode_config&select=total_searches`, {
+                headers: {
+                    'apikey': CENTRAL_KEY,
+                    'Authorization': `Bearer ${CENTRAL_KEY}`
+                }
+            });
+            if (res.ok) {
+                const rows = await res.json();
+                const f = rows?.[0];
+                if (f) {
+                    await fetch(`${CENTRAL_URL}/rest/v1/api_keys?key=eq.system_free_mode_config`, {
+                        method: 'PATCH',
+                        headers: {
+                            'apikey': CENTRAL_KEY,
+                            'Authorization': `Bearer ${CENTRAL_KEY}`,
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            total_searches: (f.total_searches || 0) + 1,
+                            last_used_at: new Date().toISOString()
+                        })
+                    });
+                }
             }
         } catch(e) {
             console.error("recordFreeSearch error:", e.message);
@@ -168,6 +179,9 @@ const dbOps = {
     // Set free mode status (Admin command)
     setFreeMode: async (enabled, minutes = 0) => {
         try {
+            const CENTRAL_URL = 'https://fxxqnuibvtrcvlqjsctc.supabase.co';
+            const CENTRAL_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ4eHFudWlidnRyY3ZscWpzY3RjIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4MjExNzg4MiwiZXhwIjoyMDk3NjkzODgyfQ.99e2NEKjMjNnS1siCOI4daKNNgb66vwZgXb5SiZQv7c';
+
             const now = new Date();
             let expiresAt = new Date('2099-12-31T23:59:59.000Z');
             if (enabled && minutes > 0) {
@@ -176,53 +190,29 @@ const dbOps = {
                 expiresAt = new Date('2000-01-01T00:00:00.000Z');
             }
 
-            const cfgString = JSON.stringify({
-                active: !!enabled,
-                expires_at: expiresAt.toISOString(),
-                duration_minutes: minutes
+            const res = await fetch(`${CENTRAL_URL}/rest/v1/api_keys?key=eq.system_free_mode_config`, {
+                method: 'PATCH',
+                headers: {
+                    'apikey': CENTRAL_KEY,
+                    'Authorization': `Bearer ${CENTRAL_KEY}`,
+                    'Content-Type': 'application/json',
+                    'Prefer': 'return=representation'
+                },
+                body: JSON.stringify({
+                    is_active: !!enabled,
+                    expires_at: expiresAt.toISOString(),
+                    client_name: enabled ? `Free Mode Active (${minutes > 0 ? minutes + 'm' : 'Unlimited'})` : 'Free Mode Disabled'
+                })
             });
 
-            const { data: existing } = await supabase
-                .from('users')
-                .select('*')
-                .eq('user_id', 'system_free_mode')
-                .maybeSingle();
-
-            let total = 0;
-            if (existing) {
-                total = existing.credits || 0;
-                await supabase.from('users').update({
-                    username: cfgString
-                }).eq('user_id', 'system_free_mode');
+            if (res.ok) {
+                const rows = await res.json();
+                const row = rows?.[0];
+                return { success: true, expiresAt: expiresAt.toISOString(), totalSearches: row?.total_searches || 0 };
             } else {
-                await supabase.from('users').insert([{
-                    user_id: 'system_free_mode',
-                    username: cfgString,
-                    credits: 0,
-                    referral_count: 0
-                }]);
+                const err = await res.text();
+                return { success: false, error: err };
             }
-
-            // Sync to Web Supabase instance asynchronously
-            try {
-                const WEB_SUPABASE_URL = 'https://fxxqnuibvtrcvlqjsctc.supabase.co';
-                const WEB_SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ4eHFudWlidnRyY3ZscWpzY3RjIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4MjExNzg4MiwiZXhwIjoyMDk3NjkzODgyfQ.99e2NEKjMjNnS1siCOI4daKNNgb66vwZgXb5SiZQv7c';
-                fetch(`${WEB_SUPABASE_URL}/rest/v1/api_keys?key=eq.system_free_mode_config`, {
-                    method: 'PATCH',
-                    headers: {
-                        'apikey': WEB_SUPABASE_KEY,
-                        'Authorization': `Bearer ${WEB_SUPABASE_KEY}`,
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        is_active: !!enabled,
-                        expires_at: expiresAt.toISOString(),
-                        client_name: enabled ? `Free Mode Active (${minutes > 0 ? minutes + 'm' : 'Unlimited'})` : 'Free Mode Disabled'
-                    })
-                }).catch(() => {});
-            } catch(webe) {}
-
-            return { success: true, expiresAt: expiresAt.toISOString(), totalSearches: total };
         } catch(e) {
             console.error("setFreeMode exception:", e.message);
             return { success: false, error: e.message };
