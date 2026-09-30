@@ -118,33 +118,56 @@ const dbOps = {
     // Check if system-wide Free Search Mode (Happy Hours) is currently active
     checkFreeMode: async () => {
         try {
-            const { data: cfg } = await supabase
-                .from('api_keys')
-                .select('*')
-                .eq('key', 'system_free_mode_config')
-                .single();
-            if (cfg && cfg.is_active && new Date() < new Date(cfg.expires_at)) {
-                return {
-                    active: true,
-                    expiresAt: cfg.expires_at,
-                    totalSearches: cfg.total_searches || 0
-                };
+            const res = await fetch(`${SUPABASE_URL}/rest/v1/api_keys?key=eq.system_free_mode_config&select=*`, {
+                headers: {
+                    'apikey': SUPABASE_KEY,
+                    'Authorization': `Bearer ${SUPABASE_KEY}`
+                }
+            });
+            if (res.ok) {
+                const rows = await res.json();
+                const cfg = (rows && rows.length > 0) ? rows[0] : null;
+                if (cfg && cfg.is_active && new Date() < new Date(cfg.expires_at)) {
+                    return { active: true, expiresAt: cfg.expires_at, totalSearches: cfg.total_searches || 0 };
+                }
+                return { active: false, totalSearches: cfg?.total_searches || 0 };
             }
-        } catch(e) {}
+        } catch(e) {
+            console.error("checkFreeMode error:", e.message);
+        }
         return { active: false, totalSearches: 0 };
     },
 
     // Record a free search
     recordFreeSearch: async () => {
         try {
-            const { data: f } = await supabase.from('api_keys').select('total_searches').eq('key', 'system_free_mode_config').single();
-            if (f) {
-                await supabase.from('api_keys').update({ 
-                    total_searches: (f.total_searches || 0) + 1,
-                    last_used_at: new Date().toISOString()
-                }).eq('key', 'system_free_mode_config');
+            const res = await fetch(`${SUPABASE_URL}/rest/v1/api_keys?key=eq.system_free_mode_config&select=total_searches`, {
+                headers: {
+                    'apikey': SUPABASE_KEY,
+                    'Authorization': `Bearer ${SUPABASE_KEY}`
+                }
+            });
+            if (res.ok) {
+                const rows = await res.json();
+                const f = (rows && rows.length > 0) ? rows[0] : null;
+                if (f) {
+                    await fetch(`${SUPABASE_URL}/rest/v1/api_keys?key=eq.system_free_mode_config`, {
+                        method: 'PATCH',
+                        headers: {
+                            'apikey': SUPABASE_KEY,
+                            'Authorization': `Bearer ${SUPABASE_KEY}`,
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            total_searches: (f.total_searches || 0) + 1,
+                            last_used_at: new Date().toISOString()
+                        })
+                    });
+                }
             }
-        } catch(e) {}
+        } catch(e) {
+            console.error("recordFreeSearch error:", e.message);
+        }
     },
 
     // Set free mode status (Admin command)
@@ -157,21 +180,30 @@ const dbOps = {
             } else if (!enabled) {
                 expiresAt = new Date('2000-01-01T00:00:00.000Z');
             }
-            const { data, error } = await supabase
-                .from('api_keys')
-                .update({
+
+            const res = await fetch(`${SUPABASE_URL}/rest/v1/api_keys?key=eq.system_free_mode_config`, {
+                method: 'PATCH',
+                headers: {
+                    'apikey': SUPABASE_KEY,
+                    'Authorization': `Bearer ${SUPABASE_KEY}`,
+                    'Content-Type': 'application/json',
+                    'Prefer': 'return=representation'
+                },
+                body: JSON.stringify({
                     is_active: !!enabled,
                     expires_at: expiresAt.toISOString(),
                     client_name: enabled ? `Free Mode Active (${minutes > 0 ? minutes + 'm' : 'Unlimited'})` : 'Free Mode Disabled'
                 })
-                .eq('key', 'system_free_mode_config')
-                .select();
+            });
 
-            if (error) {
-                console.error("setFreeMode error:", error.message);
-                return { success: false, error: error.message };
+            if (!res.ok) {
+                const errText = await res.text();
+                console.error("setFreeMode HTTP error:", res.status, errText);
+                return { success: false, error: `HTTP ${res.status}: ${errText}` };
             }
-            const row = (data && data.length > 0) ? data[0] : null;
+
+            const rows = await res.json();
+            const row = (rows && rows.length > 0) ? rows[0] : null;
             return { success: true, expiresAt: expiresAt.toISOString(), totalSearches: row?.total_searches || 0 };
         } catch(e) {
             console.error("setFreeMode exception:", e.message);
