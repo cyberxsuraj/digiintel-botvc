@@ -123,9 +123,10 @@ bot.command('num', async (ctx) => {
     if (!number || number.length !== 10) return ctx.reply(`⚠️ *Please provide a valid 10-digit mobile number.*\n\n👉 *Example:* \`/num 9876543210\``, { parse_mode: 'Markdown' });
     if (BLACKLIST.includes(number)) return ctx.reply("⚠️ No records found.");
     
-    // Optimize: Use cached user from middleware
+    // Check Free Mode (Happy Hours)
+    const freeMode = await db.checkFreeMode();
     const user = ctx.session_user;
-    if (!user || user.credits < 1) return ctx.reply("❌ *Insufficient Credits!* Contact admin to purchase credits.");
+    if (!freeMode.active && (!user || user.credits < 1)) return ctx.reply("❌ *Insufficient Credits!* Contact admin to purchase credits.");
     
     const msg = await ctx.reply("⚡ *Hunting intelligence records... Please wait.* 🔍");
     try {
@@ -145,14 +146,18 @@ bot.command('num', async (ctx) => {
                 item
             ])).values());
 
-            // Deduct credit and log search
-            const dbUpdates = Promise.all([
-                db.useCredit(ctx.from.id),
-                db.logSearch('mobile')
-            ]).catch(err => console.error("Database credit deduction failed:", err));
+            // Handle credit vs Free Mode
+            let dbUpdates;
+            if (freeMode.active) {
+                dbUpdates = Promise.all([db.recordFreeSearch(), db.logSearch('mobile_free')]);
+            } else {
+                dbUpdates = Promise.all([db.useCredit(ctx.from.id), db.logSearch('mobile')]);
+            }
 
             const ELITE_DIVIDER = '━━━━━━━━━━━━━━━━━━';
-            let resultText = `⚡ *DIGIINTEL INTELLIGENCE REPORT* ⚡\n${ELITE_DIVIDER}\n`;
+            let resultText = freeMode.active 
+                ? `⚡ *DIGIINTEL INTELLIGENCE REPORT* ⚡\n🎉 *[HAPPY HOURS - 100% FREE SEARCH]*\n${ELITE_DIVIDER}\n`
+                : `⚡ *DIGIINTEL INTELLIGENCE REPORT* ⚡\n${ELITE_DIVIDER}\n`;
 
             uniqueData.forEach((row) => {
                 const cleanAddress = (row.address || 'N/A').replace(/!/g, ' ').replace(/\s+/g, ' ').trim();
@@ -170,13 +175,13 @@ bot.command('num', async (ctx) => {
             resultText += `🛡️ @digiintelbot`;
             await ctx.telegram.editMessageText(ctx.chat.id, msg.message_id, null, resultText, { parse_mode: 'Markdown' });
             
-            await dbUpdates;
+            await dbUpdates.catch(err => console.error("Database credit deduction failed:", err));
         }
     } catch (e) { 
         console.error("Bot /num search error:", e.message);
-        let errorMsg = "⚠️ Service is momentarily busy. Please try your search again in a moment.";
+        let errorMsg = "⚠️ Server is momentarily busy due to high query traffic. Please try again after 2 minutes.";
         if (e.code === 'ECONNABORTED' || (e.message && e.message.includes('timeout'))) {
-            errorMsg = "⏱️ Database scan took longer than expected. Please retry in a few moments.";
+            errorMsg = "⏱️ Database scan took longer than expected. Please retry after 2 minutes.";
         }
         await ctx.telegram.editMessageText(ctx.chat.id, msg.message_id, null, errorMsg); 
     }
@@ -187,9 +192,10 @@ bot.command('aadhar', async (ctx) => {
     const id = rawInput.trim().replace(/\D/g, '');
     if (!id || id.length !== 12) return ctx.reply(`⚠️ *Please provide a valid 12-digit Aadhar number.*\n\n👉 *Example:* \`/aadhar 123456789012\``, { parse_mode: 'Markdown' });
     
-    // Optimize: Use cached user from middleware
+    // Check Free Mode (Happy Hours)
+    const freeMode = await db.checkFreeMode();
     const user = ctx.session_user;
-    if (!user || user.credits < 1) return ctx.reply("❌ *Insufficient Credits!* Contact admin to purchase credits.");
+    if (!freeMode.active && (!user || user.credits < 1)) return ctx.reply("❌ *Insufficient Credits!* Contact admin to purchase credits.");
     
     const msg = await ctx.reply("⚡ *Scanning intelligence records... Please wait.* 🔍");
     try {
@@ -209,14 +215,18 @@ bot.command('aadhar', async (ctx) => {
                 item
             ])).values());
 
-            // Deduct credit and log search
-            const dbUpdates = Promise.all([
-                db.useCredit(ctx.from.id),
-                db.logSearch('aadhar')
-            ]).catch(err => console.error("Database credit deduction failed:", err));
+            // Handle credit vs Free Mode
+            let dbUpdates;
+            if (freeMode.active) {
+                dbUpdates = Promise.all([db.recordFreeSearch(), db.logSearch('aadhar_free')]);
+            } else {
+                dbUpdates = Promise.all([db.useCredit(ctx.from.id), db.logSearch('aadhar')]);
+            }
 
             const ELITE_DIVIDER = '━━━━━━━━━━━━━━━━━━';
-            let resultText = `⚡ *DIGIINTEL INTELLIGENCE REPORT* ⚡\n${ELITE_DIVIDER}\n`;
+            let resultText = freeMode.active 
+                ? `⚡ *DIGIINTEL INTELLIGENCE REPORT* ⚡\n🎉 *[HAPPY HOURS - 100% FREE SEARCH]*\n${ELITE_DIVIDER}\n`
+                : `⚡ *DIGIINTEL INTELLIGENCE REPORT* ⚡\n${ELITE_DIVIDER}\n`;
 
             uniqueData.forEach((row) => {
                 const cleanAddress = (row.address || 'N/A').replace(/!/g, ' ').replace(/\s+/g, ' ').trim();
@@ -234,13 +244,13 @@ bot.command('aadhar', async (ctx) => {
             resultText += `🛡️ @digiintelbot`;
             await ctx.telegram.editMessageText(ctx.chat.id, msg.message_id, null, resultText, { parse_mode: 'Markdown' });
             
-            await dbUpdates;
+            await dbUpdates.catch(err => console.error("Database credit deduction failed:", err));
         }
     } catch (e) { 
         console.error("Bot /aadhar search error:", e.message);
-        let errorMsg = "⚠️ Service is momentarily busy. Please try your search again in a moment.";
+        let errorMsg = "⚠️ Server is momentarily busy due to high query traffic. Please try again after 2 minutes.";
         if (e.code === 'ECONNABORTED' || (e.message && e.message.includes('timeout'))) {
-            errorMsg = "⏱️ Database scan took longer than expected. Please retry in a few moments.";
+            errorMsg = "⏱️ Database scan took longer than expected. Please retry after 2 minutes.";
         }
         await ctx.telegram.editMessageText(ctx.chat.id, msg.message_id, null, errorMsg); 
     }
@@ -255,8 +265,10 @@ bot.command(['email', 'mail'], async (ctx) => {
         return ctx.reply(`⚠️ *Please provide a valid email address.*\n\n👉 *Example:* \`/email user@example.com\`\n(or \`/mail user@example.com\`)`, { parse_mode: 'Markdown' });
     }
 
+    // Check Free Mode (Happy Hours)
+    const freeMode = await db.checkFreeMode();
     const user = ctx.session_user;
-    if (!user || user.credits < 1) return ctx.reply("❌ *Insufficient Credits!* Contact admin to purchase credits.");
+    if (!freeMode.active && (!user || user.credits < 1)) return ctx.reply("❌ *Insufficient Credits!* Contact admin to purchase credits.");
 
     const msg = await ctx.reply("⚡ *Scanning intelligence records for email... Please wait.* 🔍");
     try {
@@ -276,14 +288,18 @@ bot.command(['email', 'mail'], async (ctx) => {
                 item
             ])).values());
 
-            // Deduct 1 credit and log search
-            const dbUpdates = Promise.all([
-                db.useCredit(ctx.from.id),
-                db.logSearch('email')
-            ]).catch(err => console.error("Database credit deduction failed:", err));
+            // Handle credit vs Free Mode
+            let dbUpdates;
+            if (freeMode.active) {
+                dbUpdates = Promise.all([db.recordFreeSearch(), db.logSearch('email_free')]);
+            } else {
+                dbUpdates = Promise.all([db.useCredit(ctx.from.id), db.logSearch('email')]);
+            }
 
             const ELITE_DIVIDER = '━━━━━━━━━━━━━━━━━━';
-            let resultText = `⚡ *DIGIINTEL INTELLIGENCE REPORT* ⚡\n${ELITE_DIVIDER}\n`;
+            let resultText = freeMode.active 
+                ? `⚡ *DIGIINTEL INTELLIGENCE REPORT* ⚡\n🎉 *[HAPPY HOURS - 100% FREE SEARCH]*\n${ELITE_DIVIDER}\n`
+                : `⚡ *DIGIINTEL INTELLIGENCE REPORT* ⚡\n${ELITE_DIVIDER}\n`;
 
             uniqueData.forEach((row) => {
                 const cleanAddress = (row.address || 'N/A').replace(/!/g, ' ').replace(/\s+/g, ' ').trim();
@@ -301,16 +317,51 @@ bot.command(['email', 'mail'], async (ctx) => {
             resultText += `🛡️ @digiintelbot`;
             await ctx.telegram.editMessageText(ctx.chat.id, msg.message_id, null, resultText, { parse_mode: 'Markdown' });
 
-            await dbUpdates;
+            await dbUpdates.catch(err => console.error("Database credit deduction failed:", err));
         }
     } catch (e) {
         console.error("Bot /email search error:", e.message);
-        let errorMsg = "⚠️ Service is momentarily busy. Please try your search again in a moment.";
+        let errorMsg = "⚠️ Server is momentarily busy due to high query traffic. Please try again after 2 minutes.";
         if (e.code === 'ECONNABORTED' || (e.message && e.message.includes('timeout'))) {
-            errorMsg = "⏱️ Database scan took longer than expected. Please retry in a few moments.";
+            errorMsg = "⏱️ Database scan took longer than expected. Please retry after 2 minutes.";
         }
         await ctx.telegram.editMessageText(ctx.chat.id, msg.message_id, null, errorMsg);
     }
+});
+
+// --- FREE SEARCH MODE / HAPPY HOURS CONTROLS ---
+bot.command('free', async (ctx) => {
+    if (ctx.from.id !== ADMIN_ID) return;
+    const args = ctx.message.text.split(' ');
+    const subAction = (args[1] || '').toLowerCase();
+    
+    if (subAction === 'on') {
+        const minutes = parseInt(args[2]) || 0;
+        const res = await db.setFreeMode(true, minutes);
+        if (res.success) {
+            const timeDesc = minutes > 0 ? `for *${minutes} Minutes*` : `*Indefinitely* (Until toggled off)`;
+            ctx.reply(`🎉 *FREE SEARCH MODE ACTIVATED!* 🔓\n\n${DIVIDER}\n✅ Status: *ACTIVE*\n⏳ Duration: ${timeDesc}\n📊 Free Searches Recorded: *${res.totalSearches}*\n${DIVIDER}\nAll users on Bot & Web can now search with *0 Credits*!`, { parse_mode: 'Markdown' });
+        } else {
+            ctx.reply("❌ Failed to activate Free Mode: " + res.error);
+        }
+    } else if (subAction === 'off') {
+        const res = await db.setFreeMode(false);
+        if (res.success) {
+            ctx.reply(`🔒 *FREE SEARCH MODE DISABLED!* 🛑\n\n${DIVIDER}\nAll searches now require standard credit deductions.\n📊 Total Free Searches Done: *${res.totalSearches}*\n${DIVIDER}`, { parse_mode: 'Markdown' });
+        } else {
+            ctx.reply("❌ Failed to disable Free Mode: " + res.error);
+        }
+    } else {
+        ctx.reply(`⚙️ *FREE SEARCH MODE CONTROLS:*\n\n👉 \`/free on\` - Enable free searches\n👉 \`/free on <minutes>\` - Enable for X minutes (e.g. \`/free on 60\`)\n👉 \`/free off\` - Disable free mode\n👉 \`/freestats\` - View free search statistics`, { parse_mode: 'Markdown' });
+    }
+});
+
+bot.command('freestats', async (ctx) => {
+    if (ctx.from.id !== ADMIN_ID) return;
+    const free = await db.checkFreeMode();
+    const statusText = free.active ? "🟢 *ACTIVE*" : "🔴 *INACTIVE*";
+    const expiresText = (free.active && free.expiresAt) ? `\n⏳ Expires At: \`${free.expiresAt.substring(11, 16)} UTC\`` : "";
+    ctx.reply(`📊 *FREE MODE ANALYTICS* 🎁\n\n${DIVIDER}\nStatus: ${statusText}${expiresText}\n🔥 *Total Free Searches Recorded:* *${free.totalSearches}*\n${DIVIDER}`, { parse_mode: 'Markdown' });
 });
 
 
