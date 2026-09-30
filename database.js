@@ -1,8 +1,8 @@
 const { createClient } = require('@supabase/supabase-js');
 require('dotenv').config();
 
-const SUPABASE_URL = process.env.SUPABASE_URL;
-const SUPABASE_KEY = process.env.SUPABASE_KEY || process.env.SUPABASE_SERVICE_KEY;
+const SUPABASE_URL = process.env.SUPABASE_URL || 'https://fxxqnuibvtrcvlqjsctc.supabase.co';
+const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ4eHFudWlidnRyY3ZscWpzY3RjIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4MjExNzg4MiwiZXhwIjoyMDk3NjkzODgyfQ.99e2NEKjMjNnS1siCOI4daKNNgb66vwZgXb5SiZQv7c';
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY, {
     auth: {
@@ -165,10 +165,16 @@ const dbOps = {
                     client_name: enabled ? `Free Mode Active (${minutes > 0 ? minutes + 'm' : 'Unlimited'})` : 'Free Mode Disabled'
                 })
                 .eq('key', 'system_free_mode_config')
-                .select()
-                .single();
-            return { success: !error, expiresAt: expiresAt.toISOString(), totalSearches: data?.total_searches || 0 };
+                .select();
+
+            if (error) {
+                console.error("setFreeMode error:", error.message);
+                return { success: false, error: error.message };
+            }
+            const row = (data && data.length > 0) ? data[0] : null;
+            return { success: true, expiresAt: expiresAt.toISOString(), totalSearches: row?.total_searches || 0 };
         } catch(e) {
+            console.error("setFreeMode exception:", e.message);
             return { success: false, error: e.message };
         }
     }
